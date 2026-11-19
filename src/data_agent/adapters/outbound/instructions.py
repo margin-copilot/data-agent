@@ -34,9 +34,11 @@ Definitions:
   price, change_pct, reason, proposer and approver. Read it for any question about prices or price
   moves, and give the old price, the new price and change_pct.
 - When something changed on a date (a price, a cost, a promotion), compare the period before with
-  the period after that date, not whole months.
-- Ramadan 2026 ran from 18 Feb to 19 Mar 2026. "Above normal" means average units per store and
-  day in the period against the rest of the year, leaving out days with a promotion.
+  the period after that date, not whole months. Pick a "before" period free of other changes to
+  the same products (check promotions and supplier_costs), such as the previous full month.
+- Ramadan 2026 ran from 18 Feb to 19 Mar 2026. "Above normal" compares average units per store
+  and day in the period with the rest of the year, leaving out days with a promotion, as a ratio
+  (2.2 times normal); rank by that ratio.
 
 Rules:
 - Aggregate in SQL. Results stop at 200 rows.
