@@ -103,10 +103,17 @@ async def test_query_errors_become_query_failed_without_their_text():
     assert driver.connections[0].closed
 
 
-async def test_a_waking_database_is_retried():
-    driver = FakeDriver(
-        connect_errors=[RuntimeError("Database is not currently available (40613)")]
-    )
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Database is not currently available (40613)",
+        # mssql-python 1.17.0's text for 40613 carries no error number (seen live, milestone 4).
+        "Driver Error: General error; DDBC Error: [Microsoft][SQL Server]Database 'riad' on server "
+        "'srv.database.windows.net' is not currently available.  Please retry the connection.",
+    ],
+)
+async def test_a_waking_database_is_retried(message):
+    driver = FakeDriver(connect_errors=[RuntimeError(message)])
     sleeps = []
     sql, _ = runner(driver, sleeps)
     with request_scope(USER):

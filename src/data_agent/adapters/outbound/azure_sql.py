@@ -15,7 +15,9 @@ from data_agent.application.run_sql import QueryFailed
 
 SQL_SCOPES = ["https://database.windows.net/.default"]
 ACCESS_TOKEN = 1256  # SQL_COPT_SS_ACCESS_TOKEN
-WAKING = "40613"  # the free-offer database is resuming from auto-pause
+# The free-offer database is resuming from auto-pause (40613). mssql-python 1.17.0 reports it
+# without the number, so the message text counts too.
+WAKING = ("40613", "is not currently available")
 WAKE_DELAYS = (5, 10, 20, 30)
 LOGIN_TIMEOUT = 30
 QUERY_TIMEOUT = 30
@@ -71,7 +73,7 @@ class AzureSqlRunner:
             try:
                 return self._connect(self._dsn, attrs_before=attrs, timeout=LOGIN_TIMEOUT)
             except Exception as error:
-                if delay is None or WAKING not in str(error):
+                if delay is None or not any(sign in str(error) for sign in WAKING):
                     log.warning("connect failed: %s: %.300s", type(error).__name__, error)
                     raise QueryFailed from None
                 self._sleep(delay)
