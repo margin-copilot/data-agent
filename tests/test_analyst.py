@@ -86,6 +86,8 @@ def test_the_instructions_carry_the_live_suite_lessons():
     text = " ".join(instructions(["N"]).split())
     for rule in (
         "never by sku alone",
+        "everyday names",
+        "first give the figure asked about for both periods",
         "Price changes are in price_history",
         "compare the period before with the period after",
         "free of other changes",
