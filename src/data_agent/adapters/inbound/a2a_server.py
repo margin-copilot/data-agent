@@ -1,6 +1,9 @@
-"""A2A server for the data agent, behind the shared token middleware."""
+"""A2A server for the data agent, behind the shared token middleware. Replies are one data part
+in the shared AgentReply contract."""
 
-from a2a.helpers import new_text_message
+import logging
+
+from a2a.helpers import new_data_message
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
 from a2a.server.request_handlers import DefaultRequestHandler
@@ -13,15 +16,27 @@ from margin_copilot_shared.security.tokens import TokenValidator
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 
-from data_agent.application.whoami import Directory, whoami
+from data_agent.application.analyst import Analyst
+
+log = logging.getLogger(__name__)
+
+
+class DataAgentFailed(Exception):
+    def __init__(self) -> None:
+        super().__init__("data-agent failed")  # a2a-sdk sends str(exception) to the caller
 
 
 class DataAgentExecutor(AgentExecutor):
-    def __init__(self, directory: Directory) -> None:
-        self._directory = directory
+    def __init__(self, analyst: Analyst) -> None:
+        self._analyst = analyst
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
-        await event_queue.enqueue_event(new_text_message(await whoami(self._directory)))
+        try:
+            reply = await self._analyst.answer(context.get_user_input())
+        except Exception as error:
+            log.warning("answer failed: %s", type(error).__name__)
+            raise DataAgentFailed from None
+        await event_queue.enqueue_event(new_data_message(reply.model_dump()))
 
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:
         raise NotImplementedError("data-agent replies in one message; nothing to cancel")
@@ -31,28 +46,29 @@ def agent_card(public_url: str) -> AgentCard:
     return AgentCard(
         name="data-agent",
         description="Answers questions from Riad Market sales data as the signed-in user.",
-        version="0.1.0",
+        version="0.2.0",
         default_input_modes=["text/plain"],
-        default_output_modes=["text/plain"],
+        default_output_modes=["application/json"],
         capabilities=AgentCapabilities(streaming=False),
         supported_interfaces=[
             AgentInterface(protocol_binding="JSONRPC", url=public_url, protocol_version="1.0")
         ],
         skills=[
             AgentSkill(
-                id="whoami",
-                name="Who am I",
-                description="Reports the signed-in user as the directory sees them.",
-                tags=["identity"],
+                id="sales-data",
+                name="Sales data",
+                description="Sales, costs, prices, promotions and competitor prices, read with "
+                "one checked SELECT per query as the signed-in user.",
+                tags=["sql", "pricing"],
             )
         ],
     )
 
 
-def create_a2a_app(directory: Directory, validator: TokenValidator, public_url: str) -> Starlette:
+def create_a2a_app(analyst: Analyst, validator: TokenValidator, public_url: str) -> Starlette:
     card = agent_card(public_url)
     handler = DefaultRequestHandler(
-        agent_executor=DataAgentExecutor(directory),
+        agent_executor=DataAgentExecutor(analyst),
         task_store=InMemoryTaskStore(),
         agent_card=card,
     )

@@ -10,6 +10,9 @@ COPY src ./src
 RUN uv sync --locked --no-editable
 
 FROM python:3.12-slim
+# The SQL driver bundled in mssql-python needs these (Learn: mssql-python installation, Linux).
+RUN apt-get update && apt-get install -y --no-install-recommends libltdl7 libkrb5-3 libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/*
 RUN useradd --create-home --uid 10001 app
 COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
