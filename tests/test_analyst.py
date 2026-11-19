@@ -7,6 +7,7 @@ from margin_copilot_shared.security.context import RequestContext, request_scope
 from margin_copilot_shared.security.tokens import Caller
 
 from data_agent.adapters.outbound.analyst import AnalystFailed, FakeAnalyst, FoundryAnalyst
+from data_agent.adapters.outbound.instructions import instructions
 from data_agent.application.run_sql import SqlTool
 from tests.fakes import FakeRunner, ScriptedChatClient
 
@@ -79,3 +80,18 @@ async def test_the_fake_analyst_answers_as_the_caller():
     with request_scope(USER):
         reply = await FakeAnalyst().answer("anything")
     assert reply == AgentReply(answer="fake data-agent answers as user north-mgr")
+
+
+def test_the_instructions_carry_the_live_suite_lessons():
+    text = " ".join(instructions(["N"]).split())
+    for rule in (
+        "never by sku alone",
+        "Price changes are in price_history",
+        "compare the period before with the period after",
+        "the latest competitor_prices week",
+        "Ramadan 2026 ran from 18 Feb to 19 Mar 2026",
+        "whole-number columns as stored",
+        "say it had no supplier funding",
+        "Saying that no rows match isn't an answer",
+    ):
+        assert rule in text, rule
