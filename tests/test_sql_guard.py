@@ -11,7 +11,6 @@ ACCEPTED = [
     "SELECT sku FROM promotions UNION ALL SELECT sku FROM price_history",
     "SELECT * FROM dim_product p WHERE EXISTS (SELECT 1 FROM supplier_costs c WHERE c.sku = p.sku)",
     "SELECT region_id FROM competitor_prices;",
-    "SELECT * FROM dim_region -- ; DROP TABLE dim_region",
     "SELECT 1",
     "SELECT * FROM price_history"
     " WHERE effective_date >= '2026-02-01' AND effective_date < '2026-03-01'",
@@ -44,6 +43,16 @@ REJECTED = [
     ("WITH a AS (SELECT * FROM later), later AS (SELECT 1 AS n) SELECT * FROM a", "dbo.later"),
     ("SELECT rls.fn_region_filter('N')", "schema-qualified functions"),
     ("SELECT * FROM user_region", "dbo.user_region"),
+    # sqlglot reads an unquoted keyword after a table as an alias; SQL Server runs it.
+    ("SELECT TOP 1 sku FROM fact_sales EXEC('SELECT 1')", "T-SQL keyword|alias column lists"),
+    ("SELECT sku FROM fact_sales CHECKPOINT", "CHECKPOINT is a T-SQL keyword"),
+    ("SELECT sku FROM fact_sales s SHUTDOWN", "couldn't be parsed"),
+    ("SELECT * FROM fact_sales THROW", "THROW is a T-SQL keyword"),
+    ("SELECT * FROM fact_sales MATCH(x)", "alias column lists"),
+    ("SELECT * FROM dim_region -- ; DROP TABLE dim_region", "comments"),
+    ("SELECT 1 /* note */", "comments"),
+    ("SELECT sku FROM fact_sales --\x0bEXEC('x')", "control characters"),
+    ("SELECT sku\u2028FROM fact_sales", "control characters"),
     ("SELECT * FROM price_history WHERE effective_date <= '2026-02-29'", "2026-02-29 isn't a real"),
     (
         "SELECT * FROM fact_sales WHERE sale_date BETWEEN '2026-04-01' AND '2026-04-31'",

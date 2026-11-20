@@ -22,6 +22,30 @@ TABLES = frozenset(
 )
 FORBIDDEN = (exp.Into, exp.Lateral, exp.Insert, exp.Update, exp.Delete, exp.Merge, exp.Command)
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+# T-SQL reserved keywords (Learn: Reserved keywords, Transact-SQL). SQL Server never accepts them
+# unquoted as names, but sqlglot can read one as an alias: "FROM t EXEC('...')" would pass as a
+# SELECT while SQL Server runs a second statement.
+RESERVED = frozenset(
+    """
+    ADD ALL ALTER AND ANY AS ASC AUTHORIZATION BACKUP BEGIN BETWEEN BREAK BROWSE BULK BY
+    CASCADE CASE CHECK CHECKPOINT CLOSE CLUSTERED COALESCE COLLATE COLUMN COMMIT COMPUTE
+    CONSTRAINT CONTAINS CONTAINSTABLE CONTINUE CONVERT CREATE CROSS CURRENT CURRENT_DATE
+    CURRENT_TIME CURRENT_TIMESTAMP CURRENT_USER CURSOR DATABASE DBCC DEALLOCATE DECLARE
+    DEFAULT DELETE DENY DESC DISK DISTINCT DISTRIBUTED DOUBLE DROP DUMP ELSE END ERRLVL
+    ESCAPE EXCEPT EXEC EXECUTE EXISTS EXIT EXTERNAL FETCH FILE FILLFACTOR FOR FOREIGN
+    FREETEXT FREETEXTTABLE FROM FULL FUNCTION GOTO GRANT GROUP HAVING HOLDLOCK IDENTITY
+    IDENTITY_INSERT IDENTITYCOL IF IN INDEX INNER INSERT INTERSECT INTO IS JOIN KEY KILL
+    LABEL LEFT LIKE LINENO LOAD MERGE NATIONAL NOCHECK NONCLUSTERED NOT NULL NULLIF OF OFF
+    OFFSETS ON OPEN OPENDATASOURCE OPENQUERY OPENROWSET OPENXML OPTION OR ORDER OUTER OVER
+    PERCENT PIVOT PLAN PRECISION PRIMARY PRINT PROC PROCEDURE PUBLIC RAISERROR READ READTEXT
+    RECONFIGURE REFERENCES REPLICATION RESTORE RESTRICT RETURN REVERT REVOKE RIGHT ROLLBACK
+    ROWCOUNT ROWGUIDCOL RULE SAVE SCHEMA SECURITYAUDIT SELECT SEMANTICKEYPHRASETABLE
+    SEMANTICSIMILARITYDETAILSTABLE SEMANTICSIMILARITYTABLE SESSION_USER SET SETUSER SHUTDOWN
+    SOME STATISTICS SYSTEM_USER TABLE TABLESAMPLE TEXTSIZE THEN TO TOP TRAN TRANSACTION
+    TRIGGER TRUNCATE TRY_CONVERT TSEQUAL UNION UNIQUE UNPIVOT UPDATE UPDATETEXT USE USER
+    VALUES VARYING VIEW WAITFOR WHEN WHERE WHILE WITH WRITETEXT
+    """.split()
+) | {"THROW", "RECEIVE", "SEND"}  # statement keywords that aren't on the reserved list
 
 
 class SqlRejected(ValueError):
@@ -29,6 +53,8 @@ class SqlRejected(ValueError):
 
 
 def check_select(sql: str) -> None:
+    if any((ord(c) < 32 and c not in "\t\n\r") or c in "\x85\u2028\u2029" for c in sql):
+        raise SqlRejected("control characters aren't allowed")
     try:
         statements = [s for s in sqlglot.parse(sql, dialect="tsql") if s is not None]
     except SqlglotError:
@@ -40,6 +66,14 @@ def check_select(sql: str) -> None:
         raise SqlRejected("only SELECT is allowed")
     top_with = tree.args.get("with_")
     for node in tree.walk():
+        if node.comments:  # where a comment ends can differ between sqlglot and SQL Server
+            raise SqlRejected("comments aren't allowed")
+        if isinstance(node, exp.Identifier) and not node.quoted and node.name.upper() in RESERVED:
+            raise SqlRejected(
+                f"{node.name.upper()} is a T-SQL keyword; quote it or use another name"
+            )
+        if isinstance(node, exp.TableAlias) and node.args.get("columns"):
+            raise SqlRejected("table alias column lists aren't allowed")
         if isinstance(node, FORBIDDEN):
             raise SqlRejected("only plain SELECT is allowed (no INTO, APPLY or writes)")
         if isinstance(node, exp.With) and node is not top_with:

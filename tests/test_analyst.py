@@ -112,6 +112,8 @@ def test_the_instructions_carry_the_live_suite_lessons():
         "Call margin for every margin figure",
         "rewrite it more simply and try again",
         "half-open ranges",
+        "margin's end date is inclusive",
+        "never present it as the whole chain's",
         "everyday names",
         "first give the figure asked about for both periods",
         "Price changes are in price_history",

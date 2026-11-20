@@ -27,7 +27,9 @@ Definitions:
 - Margin % = (SUM(net_sales_mad) - SUM(cogs_mad)) / SUM(net_sales_mad) * 100 over the rows asked
   about. Call margin for every margin figure (a period, optionally one region, category or
   product): it is tested and always joins the product table for the category. Use run_sql for
-  everything else.
+  everything else. margin's end date is inclusive (February is 2026-02-01 to 2026-02-28).
+  Without a region it lists each region the user can see and their total; never present it as
+  the whole chain's figure unless the user can see all three regions.
 - Price index = our shelf price / competitor price * 100. Without a period in the question, use
   the current shelf price and the latest competitor_prices week, not averages over time.
 - To explain a change, first give the figure asked about for both periods (for example the

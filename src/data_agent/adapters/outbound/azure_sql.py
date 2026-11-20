@@ -3,6 +3,7 @@ connection, with pooling off, so no connection is ever shared across users; then
 
 import asyncio
 import logging
+import re
 import struct
 import time
 from collections.abc import Callable
@@ -20,17 +21,22 @@ ACCESS_TOKEN = 1256  # SQL_COPT_SS_ACCESS_TOKEN
 WAKING = ("40613", "is not currently available")
 WAKE_DELAYS = (5, 10, 20, 30)
 LOGIN_TIMEOUT = 30
-# Raised while compiling, before any row is read. Errors while reading rows (divide by zero,
-# conversions) can carry or reveal row values, so they stay "query failed".
-COMPILE_ERRORS = (
-    "Invalid column name",
-    "Invalid object name",
-    "Incorrect syntax near",
-    "Ambiguous column name",
-    "could not be bound",
-    "is invalid in the select list",
-    "is not a recognized built-in function name",
-)
+# Whole messages SQL Server raises while compiling, before any row is read: they quote only what
+# the query wrote. Anything else (divide by zero, conversions) can carry or reveal row values, so
+# it stays "query failed"; matching whole messages keeps crafted row values from passing as one.
+COMPILE_ERRORS = [
+    re.compile(pattern)
+    for pattern in (
+        r"Invalid column name '[^']*'\.",
+        r"Invalid object name '[^']*'\.",
+        r"Incorrect syntax near (the keyword )?'[^']*'\.",
+        r"Ambiguous column name '[^']*'\.",
+        r'The multi-part identifier "[^"]*" could not be bound\.',
+        r"Column '[^']*' is invalid in the select list because it is not contained in either an "
+        r"aggregate function or the GROUP BY clause\.",
+        r"'[^']*' is not a recognized built-in function name\.",
+    )
+]
 QUERY_TIMEOUT = 30
 log = logging.getLogger(__name__)
 
@@ -41,8 +47,8 @@ def pack_token(token: str) -> bytes:
 
 
 def compile_error(text: str) -> str | None:
-    message = text.rsplit("]", 1)[-1].strip()
-    return message[:300] if any(sign in message for sign in COMPILE_ERRORS) else None
+    message = text.split("[SQL Server]")[-1].strip()
+    return message if any(pattern.fullmatch(message) for pattern in COMPILE_ERRORS) else None
 
 
 def default_connect() -> Callable[..., Any]:

@@ -173,6 +173,11 @@ async def test_errors_before_any_row_is_read_go_back_to_the_model(message, reaso
         "Driver Error: x; DDBC Error: [Microsoft][SQL Server]Divide by zero error encountered.",
         "Driver Error: x; DDBC Error: [Microsoft][SQL Server]Conversion failed when converting the "
         "varchar value 'secret' to data type int.",
+        # Row values crafted to look like a compile error must not pass as one.
+        "Driver Error: x; DDBC Error: [Microsoft][SQL Server]Conversion failed when converting the "
+        "varchar value 'S|2072.00 could not be bound' to data type int.",
+        "Driver Error: x; DDBC Error: [Microsoft][SQL Server]Conversion failed when converting the "
+        "varchar value 'Invalid column name 'x'.' to data type int.",
     ],
 )
 async def test_errors_while_reading_rows_stay_silent(message):

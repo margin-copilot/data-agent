@@ -18,12 +18,18 @@ SKU = re.compile(r"[A-Z]{3}-\d{3}")
 # Margin is the figure the stories turn on, so one tested query computes it every time (the
 # category needs the product join, which hand-written SQL can forget).
 MARGIN = (
-    "SELECT SUM(f.net_sales_mad) AS net_sales_mad, SUM(f.cogs_mad) AS cogs_mad, "
+    "SUM(f.net_sales_mad) AS net_sales_mad, SUM(f.cogs_mad) AS cogs_mad, "
     "CAST((SUM(f.net_sales_mad) - SUM(f.cogs_mad)) * 100 / NULLIF(SUM(f.net_sales_mad), 0) "
     "AS decimal(6, 1)) AS margin_pct "
     "FROM dbo.fact_sales AS f JOIN dbo.dim_product AS p ON p.sku = f.sku "
     "WHERE f.sale_date BETWEEN ? AND ?"
 )
+# Without a region, RLS silently limits the total to the regions the user can see: show each one.
+BY_REGION = (
+    "CASE WHEN GROUPING(f.region_id) = 1 THEN 'total of the regions you can see' "
+    "ELSE f.region_id END AS region, "
+)
+GROUPED = " GROUP BY GROUPING SETS ((f.region_id), ()) ORDER BY GROUPING(f.region_id), f.region_id"
 
 
 class QueryFailed(Exception):
@@ -81,16 +87,17 @@ class SqlTool:
         ]
         if problems:
             return f"rejected: {'; '.join(problems)}"
-        sql, params = MARGIN, [first, last]
+        sql, params = "SELECT " + ("" if region else BY_REGION) + MARGIN, [first, last]
         for column, value in (("f.region_id", region), ("p.category", category), ("f.sku", sku)):
             if value:
                 sql += f" AND {column} = ?"
                 params.append(value)
+        sql += "" if region else GROUPED
         try:
-            columns, rows = await self._runner.query(sql, 1, tuple(params))
+            columns, rows = await self._runner.query(sql, 5, tuple(params))
         except QueryFailed:
             return "query failed"
-        if not rows or rows[0][0] is None:
+        if all(row[-3] is None for row in rows):  # net_sales_mad
             return "no sales rows for that period and filter"
         return as_csv(columns, rows)
 

@@ -71,11 +71,19 @@ async def test_margin_is_one_tested_query_with_bound_filters():
     assert runner.params[0] == (date(2026, 10, 1), date(2026, 10, 31), "N", "Dairy")
 
 
-async def test_margin_by_product_across_the_visible_regions():
-    runner = FakeRunner(columns=["net_sales_mad", "cogs_mad", "margin_pct"], rows=[(1, 1, 0)])
-    await SqlTool(runner).margin("2026-08-11", "2026-08-31", None, None, "BEV-001")
-    assert runner.queries[0][0].endswith("AND f.sku = ?")
+async def test_margin_without_a_region_shows_each_visible_region_and_their_total():
+    runner = FakeRunner(
+        columns=["region", "net_sales_mad", "cogs_mad", "margin_pct"],
+        rows=[("N", 1, 1, 0), ("total of the regions you can see", 1, 1, 0)],
+    )
+    result = await SqlTool(runner).margin("2026-08-11", "2026-08-31", None, None, "BEV-001")
+    sql = runner.queries[0][0]
+    assert "AND f.sku = ?" in sql
+    assert sql.endswith(
+        "GROUP BY GROUPING SETS ((f.region_id), ()) ORDER BY GROUPING(f.region_id), f.region_id"
+    )
     assert runner.params[0][2:] == ("BEV-001",)
+    assert result.splitlines()[-1].startswith("total of the regions you can see,")
 
 
 @pytest.mark.parametrize(
@@ -94,6 +102,15 @@ async def test_bad_margin_arguments_never_reach_the_database(args, reason):
     result = await SqlTool(runner).margin(*args)
     assert result.startswith("rejected:") and reason in result
     assert runner.queries == []
+
+
+async def test_no_rows_without_a_region_says_so():
+    runner = FakeRunner(
+        columns=["region", "net_sales_mad", "cogs_mad", "margin_pct"],
+        rows=[("total of the regions you can see", None, None, None)],
+    )
+    result = await SqlTool(runner).margin("2026-07-15", "2026-07-15", None, None, None)
+    assert result == "no sales rows for that period and filter"
 
 
 async def test_a_margin_with_no_rows_says_so():
