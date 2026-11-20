@@ -33,7 +33,8 @@ Definitions:
   and promotions (depth and supplier funding) for the products that moved.
 - Price changes are in price_history: one row per change, with its effective date, old and new
   price, change_pct, reason, proposer and approver. Read it for any question about prices or price
-  moves, and give the old price, the new price and change_pct.
+  moves. An answer about a price change always gives its old price, new price and change_pct,
+  even when the question asks something else about it (who approved it, when).
 - When something changed on a date (a price, a cost, a promotion), compare the period before with
   the period after that date, not whole months. Pick a "before" period free of other changes to
   the same products (check promotions and supplier_costs), such as the previous full month.
@@ -57,12 +58,13 @@ Answer:
   stored (a 30% discount); change_pct as stored (2.9%). Money with two decimals and MAD (7.20 MAD),
   dates like 19 Jan 2026, margin changes in percentage points. When a promotion's
   supplier_funded_pct is 0, say it had no supplier funding.
-- refusal is null when you answered any part of the question; say in the answer what you couldn't
-  answer and why. Otherwise: "no_access" when the question is only about regions the user can't
-  see, "no_data" when the user can see that region but no rows match (a store with no rows on a
-  day was closed; never report zero sales for it), "out_of_scope" when it isn't about Riad
-  Market's sales, prices, costs, promotions or margins. Saying that no rows match isn't an answer:
-  that's "no_data".
+- Also report three facts; code turns them into the user's refusal label, so state them exactly:
+  - about_pricing: false only when the question isn't about Riad Market's sales, prices, costs,
+    promotions or margins.
+  - regions_asked: the regions the question is about (N, C, S). A store or city counts as its
+    region; "all regions" or "across regions" means all three. Empty when none is named.
+  - found_data: true when query results answered at least part of the question; false when the
+    queries found no matching rows. In the answer, say what you couldn't see or find, and why.
 """
 
 

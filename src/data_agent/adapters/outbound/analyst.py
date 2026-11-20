@@ -9,13 +9,18 @@ from pydantic import BaseModel, Field, ValidationError
 
 from data_agent.adapters.outbound.instructions import instructions
 from data_agent.application.run_sql import SqlTool
+from data_agent.domain.refusal import refusal_for
 
 NO_REGIONS = "You don't have access to any region's data."
 
 
 class DataAnswer(BaseModel):
+    """Facts the model reports; code turns them into the refusal label (domain/refusal.py)."""
+
     answer: str
-    refusal: Literal["out_of_scope", "no_access", "no_data"] | None
+    about_pricing: bool
+    regions_asked: list[Literal["N", "C", "S"]]
+    found_data: bool
 
 
 class AnalystFailed(Exception):
@@ -35,7 +40,7 @@ class FoundryAnalyst:
             client=self._client,
             instructions=instructions(regions),
             tools=[run_sql_tool(self._sql)],
-            default_options={"response_format": DataAnswer, "reasoning": {"effort": "low"}},
+            default_options={"response_format": DataAnswer, "reasoning": {"effort": "medium"}},
         )
         response = await agent.run(question)
         try:
@@ -44,7 +49,10 @@ class FoundryAnalyst:
             result = None
         if result is None:
             raise AnalystFailed("the model gave no structured answer")
-        return AgentReply(answer=result.answer, refusal=result.refusal)
+        refusal = refusal_for(
+            result.about_pricing, result.regions_asked, result.found_data, regions
+        )
+        return AgentReply(answer=result.answer, refusal=refusal)
 
 
 def run_sql_tool(sql: SqlTool) -> Any:

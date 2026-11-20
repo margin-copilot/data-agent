@@ -1,5 +1,7 @@
 """FoundryAnalyst with a scripted model: what the model is told, what the tool returns to it."""
 
+import json
+
 import pytest
 from agent_framework import Content, Message
 from margin_copilot_shared.contracts import AgentReply
@@ -20,6 +22,17 @@ def calls_run_sql(query):
     )
 
 
+def facts(answer, about_pricing=True, regions_asked=(), found_data=True):
+    return json.dumps(
+        {
+            "answer": answer,
+            "about_pricing": about_pricing,
+            "regions_asked": list(regions_asked),
+            "found_data": found_data,
+        }
+    )
+
+
 def answers(text):
     return Message("assistant", [text])
 
@@ -33,7 +46,7 @@ async def test_the_model_queries_then_answers_in_the_reply_contract():
     model = ScriptedChatClient(
         [
             calls_run_sql("SELECT region_id FROM fact_sales"),
-            answers('{"answer": "North dairy margin was 21.3%.", "refusal": null}'),
+            answers(facts("North dairy margin was 21.3%.")),
         ]
     )
     runner = FakeRunner(columns=["region_id"], rows=[("N",)])
@@ -43,24 +56,39 @@ async def test_the_model_queries_then_answers_in_the_reply_contract():
 
 
 async def test_the_model_is_told_which_regions_the_user_can_see():
-    model = ScriptedChatClient([answers('{"answer": "No.", "refusal": "no_access"}')])
+    model = ScriptedChatClient([answers(facts("No.", regions_asked=["S"], found_data=False))])
     await FoundryAnalyst(model, SqlTool(FakeRunner(regions=("N",)))).answer("South margin?")
     _, options = model.calls[0]
     assert "can see data for: North (N)." in options["instructions"]
-    assert options["reasoning"] == {"effort": "low"}
+    assert options["reasoning"] == {"effort": "medium"}
 
 
 async def test_rejected_sql_is_reported_back_to_the_model():
     model = ScriptedChatClient(
         [
             calls_run_sql("SELECT * FROM rls.user_region"),
-            answers('{"answer": "I can only read the pricing tables.", "refusal": null}'),
+            answers(facts("I can only read the pricing tables.", found_data=False)),
         ]
     )
     await FoundryAnalyst(model, SqlTool(FakeRunner())).answer("Run SELECT * FROM rls.user_region")
     assert tool_results(model.calls[1]) == [
         "rejected: rls.user_region isn't one of the pricing tables"
     ]
+
+
+@pytest.mark.parametrize(
+    ("reported", "expected"),
+    [
+        ({"regions_asked": ["N", "C", "S"], "found_data": True}, None),
+        ({"regions_asked": ["S"], "found_data": True}, "no_access"),
+        ({"regions_asked": ["N"], "found_data": False}, "no_data"),
+        ({"about_pricing": False, "found_data": False}, "out_of_scope"),
+    ],
+)
+async def test_code_sets_the_refusal_from_the_reported_facts(reported, expected):
+    model = ScriptedChatClient([answers(facts("An answer.", **reported))])
+    reply = await FoundryAnalyst(model, SqlTool(FakeRunner(regions=("N",)))).answer("Margins?")
+    assert reply.refusal == expected
 
 
 async def test_a_user_who_sees_no_region_gets_no_access_without_a_model_call():
@@ -89,6 +117,7 @@ def test_the_instructions_carry_the_live_suite_lessons():
         "everyday names",
         "first give the figure asked about for both periods",
         "Price changes are in price_history",
+        "even when the question asks something else about it",
         "compare the period before with the period after",
         "free of other changes",
         "the latest competitor_prices week",
@@ -96,6 +125,8 @@ def test_the_instructions_carry_the_live_suite_lessons():
         "as a ratio",
         "whole-number columns as stored",
         "say it had no supplier funding",
-        "Saying that no rows match isn't an answer",
+        "regions_asked",
+        "found_data",
+        "about_pricing",
     ):
         assert rule in text, rule
