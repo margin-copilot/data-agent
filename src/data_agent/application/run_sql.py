@@ -64,7 +64,7 @@ class SqlTool:
         try:
             first, last = date.fromisoformat(start), date.fromisoformat(end)
         except (TypeError, ValueError):
-            return "rejected: give dates as YYYY-MM-DD"
+            return "rejected: give real dates as YYYY-MM-DD"
         problems = [
             *(["start after end"] if first > last else []),
             *(

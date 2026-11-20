@@ -1,6 +1,9 @@
 """The SELECT guard for run_sql: one plain SELECT over the pricing tables, nothing else. Region
 security stays the database's job (RLS on the user's own token); this keeps the model to reads."""
 
+import re
+from datetime import date
+
 import sqlglot
 from sqlglot import exp
 from sqlglot.errors import SqlglotError
@@ -18,6 +21,7 @@ TABLES = frozenset(
     }
 )
 FORBIDDEN = (exp.Into, exp.Lateral, exp.Insert, exp.Update, exp.Delete, exp.Merge, exp.Command)
+DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 class SqlRejected(ValueError):
@@ -42,6 +46,12 @@ def check_select(sql: str) -> None:
             raise SqlRejected("WITH is allowed only at the start")
         if isinstance(node, exp.Dot) and isinstance(node.expression, exp.Func):
             raise SqlRejected("schema-qualified functions aren't allowed")
+        # SQL Server reports an impossible date only while reading rows, as a hidden error.
+        if isinstance(node, exp.Literal) and node.is_string and DATE.fullmatch(node.this):
+            try:
+                date.fromisoformat(node.this)
+            except ValueError:
+                raise SqlRejected(f"{node.this} isn't a real date") from None
     ctes = list(top_with.expressions) if top_with else []
     names = [cte.alias_or_name.lower() for cte in ctes]
     for table in tree.find_all(exp.Table):

@@ -13,6 +13,8 @@ ACCEPTED = [
     "SELECT region_id FROM competitor_prices;",
     "SELECT * FROM dim_region -- ; DROP TABLE dim_region",
     "SELECT 1",
+    "SELECT * FROM price_history"
+    " WHERE effective_date >= '2026-02-01' AND effective_date < '2026-03-01'",
 ]
 
 REJECTED = [
@@ -42,6 +44,11 @@ REJECTED = [
     ("WITH a AS (SELECT * FROM later), later AS (SELECT 1 AS n) SELECT * FROM a", "dbo.later"),
     ("SELECT rls.fn_region_filter('N')", "schema-qualified functions"),
     ("SELECT * FROM user_region", "dbo.user_region"),
+    ("SELECT * FROM price_history WHERE effective_date <= '2026-02-29'", "2026-02-29 isn't a real"),
+    (
+        "SELECT * FROM fact_sales WHERE sale_date BETWEEN '2026-04-01' AND '2026-04-31'",
+        "2026-04-31",
+    ),
 ]
 
 

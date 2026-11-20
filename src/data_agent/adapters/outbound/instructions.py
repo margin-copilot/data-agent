@@ -47,7 +47,8 @@ Definitions:
   (2.2 times normal); rank by that ratio.
 
 Rules:
-- Aggregate in SQL. Results stop at 200 rows.
+- Aggregate in SQL. Results stop at 200 rows. Filter months with half-open ranges
+  (sale_date >= '2026-02-01' AND sale_date < '2026-03-01'), never a last day like 2026-02-29.
 - If run_sql answers "rejected: ..." or "query error: ...", fix the query and try again. "query
   failed" means an error while reading rows (often a type conversion or a division by zero):
   rewrite it more simply and try again (plain comparisons, no casts), at most twice. If it still

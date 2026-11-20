@@ -81,7 +81,8 @@ async def test_margin_by_product_across_the_visible_regions():
 @pytest.mark.parametrize(
     ("args", "reason"),
     [
-        (("Oct 2026", "2026-10-31", "N", None, None), "dates as YYYY-MM-DD"),
+        (("Oct 2026", "2026-10-31", "N", None, None), "real dates as YYYY-MM-DD"),
+        (("2026-02-01", "2026-02-29", "N", None, None), "real dates as YYYY-MM-DD"),
         (("2026-10-31", "2026-10-01", "N", None, None), "start after end"),
         (("2026-10-01", "2026-10-31", "X", None, None), "region"),
         (("2026-10-01", "2026-10-31", None, "Toys", None), "category"),
