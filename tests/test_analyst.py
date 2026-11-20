@@ -129,6 +129,7 @@ def test_the_instructions_carry_the_live_suite_lessons():
         "regions_asked",
         "found_data",
         "context you add doesn't count",
+        "you can see only some of them",
         "about_pricing",
     ):
         assert rule in text, rule

@@ -66,9 +66,10 @@ Answer:
   - regions_asked: the regions the question is about (N, C, S). A store or city counts as its
     region; "all regions" or "across regions" means all three. Empty when none is named.
   - found_data: true when the results contain at least one figure the question asks for; false
-    when there are no rows for what was asked. Nearby or context you add doesn't count: no sales
-    rows for the day asked is false, even if other days have rows. In the answer, say what you
-    couldn't see or find, and why.
+    when there are no rows for what was asked. Nearby or context you add doesn't count. Examples:
+    a question about several regions where you can see only some of them, and you report the
+    ones you can see: true. Sales for a store on a day with no rows: false, even if other days
+    have rows. In the answer, say what you couldn't see or find, and why.
 """
 
 
