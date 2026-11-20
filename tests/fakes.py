@@ -12,9 +12,13 @@ class FakeRunner:
     def __init__(self, regions=("N",), columns=("n",), rows=((1,),), fail=False) -> None:
         self.regions, self.columns, self.rows, self.fail = regions, list(columns), list(rows), fail
         self.queries: list[tuple[str, int]] = []
+        self.params: list[tuple] = []
 
-    async def query(self, sql: str, max_rows: int) -> tuple[list[str], list[tuple]]:
+    async def query(
+        self, sql: str, max_rows: int, params: tuple = ()
+    ) -> tuple[list[str], list[tuple]]:
         self.queries.append((sql, max_rows))
+        self.params.append(params)
         if sql == VISIBLE_REGIONS:
             return ["region_id"], [(region,) for region in self.regions]
         if self.fail:

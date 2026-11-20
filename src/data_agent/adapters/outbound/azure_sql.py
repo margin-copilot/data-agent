@@ -66,15 +66,23 @@ class AzureSqlRunner:
         self._connect = connect or default_connect()
         self._sleep = sleep
 
-    async def query(self, sql: str, max_rows: int) -> tuple[list[str], list[tuple]]:
-        return await asyncio.to_thread(self._query, current_request().token, sql, max_rows)
+    async def query(
+        self, sql: str, max_rows: int, params: tuple = ()
+    ) -> tuple[list[str], list[tuple]]:
+        token = current_request().token
+        return await asyncio.to_thread(self._query, token, sql, max_rows, params)
 
-    def _query(self, user_token: str, sql: str, max_rows: int) -> tuple[list[str], list[tuple]]:
+    def _query(
+        self, user_token: str, sql: str, max_rows: int, params: tuple
+    ) -> tuple[list[str], list[tuple]]:
         connection = self._open(self._obo.exchange(user_token, SQL_SCOPES))
         try:
             connection.timeout = QUERY_TIMEOUT  # before cursor(): the cursor copies it
             cursor = connection.cursor()
-            cursor.execute(sql)
+            if params:
+                cursor.execute(sql, params)  # bound by the driver, never spliced into the text
+            else:
+                cursor.execute(sql)
             columns = [column[0] for column in cursor.description]
             return columns, [tuple(row) for row in cursor.fetchmany(max_rows)]
         except Exception as error:

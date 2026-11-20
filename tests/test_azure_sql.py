@@ -34,8 +34,8 @@ class FakeCursor:
         self.connection, self.error = connection, error
         self.description = [("region_id",), ("margin",)]
 
-    def execute(self, sql):
-        self.connection.executed.append(sql)
+    def execute(self, sql, params=()):
+        self.connection.executed.append((sql, params))
         if self.error:
             raise self.error
 
@@ -181,3 +181,13 @@ async def test_errors_while_reading_rows_stay_silent(message):
     with request_scope(USER), pytest.raises(QueryFailed) as failed:
         await sql.query("SELECT 1/0 FROM fact_sales", 201)
     assert not isinstance(failed.value, QueryError) and str(failed.value) == ""
+
+
+async def test_parameters_are_bound_by_the_driver_not_spliced_into_the_sql():
+    driver = FakeDriver()
+    sql, _ = runner(driver)
+    with request_scope(USER):
+        await sql.query("SELECT 1 FROM dbo.fact_sales WHERE region_id = ?", 201, ("N",))
+    assert driver.connections[0].executed == [
+        ("SELECT 1 FROM dbo.fact_sales WHERE region_id = ?", ("N",))
+    ]

@@ -38,7 +38,7 @@ class FoundryAnalyst:
         agent = Agent(
             client=self._client,
             instructions=instructions(regions),
-            tools=[run_sql_tool(self._sql)],
+            tools=[run_sql_tool(self._sql), margin_tool(self._sql)],
             default_options={"response_format": DataAnswer, "reasoning": {"effort": "medium"}},
         )
         response = await agent.run(question)
@@ -62,6 +62,27 @@ def run_sql_tool(sql: SqlTool) -> Any:
         return await sql.run_sql(query)
 
     return run_sql
+
+
+def margin_tool(sql: SqlTool) -> Any:
+    @tool(name="margin")
+    async def margin(
+        start: Annotated[str, Field(description="First day, YYYY-MM-DD.")],
+        end: Annotated[str, Field(description="Last day, YYYY-MM-DD (inclusive).")],
+        region: Annotated[
+            Literal["N", "C", "S"] | None, Field(description="One region, or null for all you see.")
+        ] = None,
+        category: Annotated[
+            Literal["Bakery", "Beverages", "Dairy", "Grocery", "Household", "Produce"] | None,
+            Field(description="One category, or null for all."),
+        ] = None,
+        sku: Annotated[str | None, Field(description="One product's sku, or null.")] = None,
+    ) -> str:
+        """Net sales, COGS and margin % (one decimal) for a period, optionally for one region,
+        category or product. Use it for every margin figure."""
+        return await sql.margin(start, end, region, category, sku)
+
+    return margin
 
 
 class FakeAnalyst:

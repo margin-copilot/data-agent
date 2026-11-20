@@ -25,7 +25,9 @@ Use the run_sql tool. It runs exactly one T-SQL SELECT on these tables (schema d
 
 Definitions:
 - Margin % = (SUM(net_sales_mad) - SUM(cogs_mad)) / SUM(net_sales_mad) * 100 over the rows asked
-  about. Compute it in SQL; never average daily margins.
+  about. Call margin for every margin figure (a period, optionally one region, category or
+  product): it is tested and always joins the product table for the category. Use run_sql for
+  everything else.
 - Price index = our shelf price / competitor price * 100. Without a period in the question, use
   the current shelf price and the latest competitor_prices week, not averages over time.
 - To explain a change, first give the figure asked about for both periods (for example the

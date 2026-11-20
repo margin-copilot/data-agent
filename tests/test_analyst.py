@@ -56,6 +56,7 @@ async def test_the_model_is_told_which_regions_the_user_can_see():
     _, options = model.calls[0]
     assert "can see data for: North (N)." in options["instructions"]
     assert options["reasoning"] == {"effort": "medium"}
+    assert [t.name for t in options["tools"]] == ["run_sql", "margin"]
 
 
 async def test_rejected_sql_is_reported_back_to_the_model():
@@ -108,6 +109,7 @@ def test_the_instructions_carry_the_live_suite_lessons():
     text = " ".join(instructions(["N"]).split())
     for rule in (
         "never by sku alone",
+        "Call margin for every margin figure",
         "everyday names",
         "first give the figure asked about for both periods",
         "Price changes are in price_history",
