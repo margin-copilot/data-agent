@@ -37,7 +37,9 @@ Definitions:
   even when the question asks something else about it (who approved it, when).
 - When something changed on a date (a price, a cost, a promotion), compare the period before with
   the period after that date, not whole months. Pick a "before" period free of other changes to
-  the same products (check promotions and supplier_costs), such as the previous full month.
+  the same products (check promotions and supplier_costs), such as the previous full month. The
+  "after" period runs from the change date to the end of that month. Use these two periods for
+  every figure about the change's effect, including the category or region totals.
 - Ramadan 2026 ran from 18 Feb to 19 Mar 2026. "Above normal" compares average units per store
   and day in the period with the rest of the year, leaving out days with a promotion, as a ratio
   (2.2 times normal); rank by that ratio.

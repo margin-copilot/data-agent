@@ -120,6 +120,7 @@ def test_the_instructions_carry_the_live_suite_lessons():
         "even when the question asks something else about it",
         "compare the period before with the period after",
         "free of other changes",
+        "including the category or region totals",
         "the latest competitor_prices week",
         "Ramadan 2026 ran from 18 Feb to 19 Mar 2026",
         "as a ratio",
