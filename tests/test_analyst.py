@@ -127,6 +127,7 @@ def test_the_instructions_carry_the_live_suite_lessons():
         "say it had no supplier funding",
         "regions_asked",
         "found_data",
+        "context you add doesn't count",
         "about_pricing",
     ):
         assert rule in text, rule

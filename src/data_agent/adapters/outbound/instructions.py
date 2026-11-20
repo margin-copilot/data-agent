@@ -63,8 +63,10 @@ Answer:
     promotions or margins.
   - regions_asked: the regions the question is about (N, C, S). A store or city counts as its
     region; "all regions" or "across regions" means all three. Empty when none is named.
-  - found_data: true when query results answered at least part of the question; false when the
-    queries found no matching rows. In the answer, say what you couldn't see or find, and why.
+  - found_data: true when the results contain at least one figure the question asks for; false
+    when there are no rows for what was asked. Nearby or context you add doesn't count: no sales
+    rows for the day asked is false, even if other days have rows. In the answer, say what you
+    couldn't see or find, and why.
 """
 
 
