@@ -11,7 +11,7 @@ from typing import Any
 from margin_copilot_shared.security.context import current_request
 from margin_copilot_shared.security.obo import OboClient
 
-from data_agent.application.run_sql import QueryFailed
+from data_agent.application.run_sql import QueryError, QueryFailed
 
 SQL_SCOPES = ["https://database.windows.net/.default"]
 ACCESS_TOKEN = 1256  # SQL_COPT_SS_ACCESS_TOKEN
@@ -20,6 +20,17 @@ ACCESS_TOKEN = 1256  # SQL_COPT_SS_ACCESS_TOKEN
 WAKING = ("40613", "is not currently available")
 WAKE_DELAYS = (5, 10, 20, 30)
 LOGIN_TIMEOUT = 30
+# Raised while compiling, before any row is read. Errors while reading rows (divide by zero,
+# conversions) can carry or reveal row values, so they stay "query failed".
+COMPILE_ERRORS = (
+    "Invalid column name",
+    "Invalid object name",
+    "Incorrect syntax near",
+    "Ambiguous column name",
+    "could not be bound",
+    "is invalid in the select list",
+    "is not a recognized built-in function name",
+)
 QUERY_TIMEOUT = 30
 log = logging.getLogger(__name__)
 
@@ -27,6 +38,11 @@ log = logging.getLogger(__name__)
 def pack_token(token: str) -> bytes:
     raw = token.encode("utf-16-le")
     return struct.pack(f"<I{len(raw)}s", len(raw), raw)
+
+
+def compile_error(text: str) -> str | None:
+    message = text.rsplit("]", 1)[-1].strip()
+    return message[:300] if any(sign in message for sign in COMPILE_ERRORS) else None
 
 
 def default_connect() -> Callable[..., Any]:
@@ -62,6 +78,8 @@ class AzureSqlRunner:
             columns = [column[0] for column in cursor.description]
             return columns, [tuple(row) for row in cursor.fetchmany(max_rows)]
         except Exception as error:
+            if reason := compile_error(str(error)):
+                raise QueryError(reason) from None
             log.warning("query failed: %s", type(error).__name__)  # the text can carry row data
             raise QueryFailed from None
         finally:

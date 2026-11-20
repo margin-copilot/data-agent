@@ -18,7 +18,6 @@ class DataAnswer(BaseModel):
     """Facts the model reports; code turns them into the refusal label (domain/refusal.py)."""
 
     answer: str
-    about_pricing: bool
     regions_asked: list[Literal["N", "C", "S"]]
     found_data: bool
 
@@ -49,9 +48,7 @@ class FoundryAnalyst:
             result = None
         if result is None:
             raise AnalystFailed("the model gave no structured answer")
-        refusal = refusal_for(
-            result.about_pricing, result.regions_asked, result.found_data, regions
-        )
+        refusal = refusal_for(result.regions_asked, result.found_data, regions)
         return AgentReply(answer=result.answer, refusal=refusal)
 
 

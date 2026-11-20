@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from data_agent.application.run_sql import MAX_ROWS, VISIBLE_REGIONS, SqlTool
+from data_agent.application.run_sql import MAX_ROWS, VISIBLE_REGIONS, QueryError, SqlTool
 from tests.fakes import FakeRunner
 
 
@@ -45,3 +45,12 @@ async def test_visible_regions_come_from_the_database_as_the_user():
     runner = FakeRunner(regions=("S", "N"))
     assert await SqlTool(runner).visible_regions() == ["N", "S"]
     assert runner.queries[0][0] == VISIBLE_REGIONS
+
+
+async def test_a_query_error_is_reported_so_the_model_can_fix_its_sql():
+    class Typo(FakeRunner):
+        async def query(self, sql, max_rows):
+            raise QueryError("Invalid column name 'regionid'.")
+
+    result = await SqlTool(Typo()).run_sql("SELECT regionid FROM fact_sales")
+    assert result == "query error: Invalid column name 'regionid'."

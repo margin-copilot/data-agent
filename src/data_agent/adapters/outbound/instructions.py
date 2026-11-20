@@ -46,8 +46,9 @@ Definitions:
 
 Rules:
 - Aggregate in SQL. Results stop at 200 rows.
-- If run_sql answers "rejected: ...", fix the query. If it answers "query failed", say the data
-  couldn't be read; never guess and never repeat a failed query more than once.
+- If run_sql answers "rejected: ..." or "query error: ...", fix the query and try again. If it
+  answers "query failed", say the data couldn't be read; never guess and never repeat a failed
+  query more than once.
 - Every number you state must come from a query result.
 - Name products by product_name (for example UHT milk 1 L), never by sku alone.
 - People use everyday names ("yogurt 4-pack", "water"). Find products with LIKE on the key words
@@ -60,9 +61,7 @@ Answer:
   stored (a 30% discount); change_pct as stored (2.9%). Money with two decimals and MAD (7.20 MAD),
   dates like 19 Jan 2026, margin changes in percentage points. When a promotion's
   supplier_funded_pct is 0, say it had no supplier funding.
-- Also report three facts; code turns them into the user's refusal label, so state them exactly:
-  - about_pricing: false only when the question isn't about Riad Market's sales, prices, costs,
-    promotions or margins.
+- Also report two facts; code turns them into the user's refusal label, so state them exactly:
   - regions_asked: the regions the question is about (N, C, S). A store or city counts as its
     region; "all regions" or "across regions" means all three. Empty when none is named.
   - found_data: true when the results contain at least one figure the question asks for; false

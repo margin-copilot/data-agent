@@ -22,14 +22,9 @@ def calls_run_sql(query):
     )
 
 
-def facts(answer, about_pricing=True, regions_asked=(), found_data=True):
+def facts(answer, regions_asked=(), found_data=True):
     return json.dumps(
-        {
-            "answer": answer,
-            "about_pricing": about_pricing,
-            "regions_asked": list(regions_asked),
-            "found_data": found_data,
-        }
+        {"answer": answer, "regions_asked": list(regions_asked), "found_data": found_data}
     )
 
 
@@ -82,7 +77,6 @@ async def test_rejected_sql_is_reported_back_to_the_model():
         ({"regions_asked": ["N", "C", "S"], "found_data": True}, None),
         ({"regions_asked": ["S"], "found_data": True}, "no_access"),
         ({"regions_asked": ["N"], "found_data": False}, "no_data"),
-        ({"about_pricing": False, "found_data": False}, "out_of_scope"),
     ],
 )
 async def test_code_sets_the_refusal_from_the_reported_facts(reported, expected):
@@ -130,6 +124,6 @@ def test_the_instructions_carry_the_live_suite_lessons():
         "found_data",
         "context you add doesn't count",
         "you can see only some of them",
-        "about_pricing",
+        '"query error: ..."',
     ):
         assert rule in text, rule

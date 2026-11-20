@@ -16,6 +16,11 @@ class QueryFailed(Exception):
     """A database failure. Deliberately carries no database text."""
 
 
+class QueryError(QueryFailed):
+    """Raised before any row is read (syntax, unknown names): its text names only what the query
+    itself wrote, so the model may see it and fix the query."""
+
+
 class SqlRunner(Protocol):
     async def query(self, sql: str, max_rows: int) -> tuple[list[str], list[tuple]]: ...
 
@@ -31,6 +36,8 @@ class SqlTool:
             return f"rejected: {rejected}"
         try:
             columns, rows = await self._runner.query(sql, MAX_ROWS + 1)
+        except QueryError as error:
+            return f"query error: {error}"
         except QueryFailed:
             return "query failed"
         return as_csv(columns, rows)

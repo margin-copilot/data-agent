@@ -15,7 +15,7 @@ from data_agent.adapters.outbound.azure_sql import (
     AzureSqlRunner,
     default_connect,
 )
-from data_agent.application.run_sql import QueryFailed
+from data_agent.application.run_sql import QueryError, QueryFailed
 
 USER = RequestContext(Caller("north-mgr", "tid", "orchestrator", frozenset()), token="user-token")
 
@@ -137,3 +137,47 @@ def test_the_real_driver_is_used_with_pooling_off(monkeypatch):
     monkeypatch.setitem(sys.modules, "mssql_python", fake)
     assert default_connect() is fake.connect
     assert calls == [{"enabled": False}]
+
+
+@pytest.mark.parametrize(
+    ("message", "reason"),
+    [
+        (
+            "Driver Error: x; DDBC Error: [Microsoft][SQL Server]Invalid column name 'regionid'.",
+            "Invalid column name 'regionid'.",
+        ),
+        (
+            "Driver Error: x; DDBC Error: [Microsoft][SQL Server]Incorrect syntax near 'FORM'.",
+            "Incorrect syntax near 'FORM'.",
+        ),
+        (
+            "Driver Error: x; DDBC Error: [Microsoft][SQL Server]Column 'dbo.fact_sales.sku' is "
+            "invalid in the select list because it is not contained in either an aggregate "
+            "function or the GROUP BY clause.",
+            "Column 'dbo.fact_sales.sku' is invalid in the select list because it is "
+            "not contained in either an aggregate function or the GROUP BY clause.",
+        ),
+    ],
+)
+async def test_errors_before_any_row_is_read_go_back_to_the_model(message, reason):
+    driver = FakeDriver(query_error=RuntimeError(message))
+    sql, _ = runner(driver)
+    with request_scope(USER), pytest.raises(QueryError) as error:
+        await sql.query("SELECT regionid FROM fact_sales", 201)
+    assert str(error.value) == reason
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Driver Error: x; DDBC Error: [Microsoft][SQL Server]Divide by zero error encountered.",
+        "Driver Error: x; DDBC Error: [Microsoft][SQL Server]Conversion failed when converting the "
+        "varchar value 'secret' to data type int.",
+    ],
+)
+async def test_errors_while_reading_rows_stay_silent(message):
+    driver = FakeDriver(query_error=RuntimeError(message))
+    sql, _ = runner(driver)
+    with request_scope(USER), pytest.raises(QueryFailed) as failed:
+        await sql.query("SELECT 1/0 FROM fact_sales", 201)
+    assert not isinstance(failed.value, QueryError) and str(failed.value) == ""
