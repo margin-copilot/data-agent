@@ -52,7 +52,7 @@ async def send(http, token):
 
 
 def reply(oid):
-    return [{"answer": f"fake data-agent answers as user {oid}", "refusal": None}]
+    return [{"answer": f"fake data-agent answers as user {oid}", "refusal": None, "citations": []}]
 
 
 async def test_the_reply_is_one_data_part_in_the_shared_contract(issuer, http):
