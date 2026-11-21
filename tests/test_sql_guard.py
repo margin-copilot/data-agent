@@ -70,3 +70,33 @@ def test_plain_selects_over_the_pricing_tables_pass(sql):
 def test_everything_else_is_rejected_with_a_reason(sql, reason):
     with pytest.raises(SqlRejected, match=reason):
         check_select(sql)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT AVG(units) FROM fact_sales",
+        "SELECT sku, AVG(f.units) AS u FROM dbo.fact_sales f GROUP BY sku",
+        "SELECT SUM(units) / COUNT(*) FROM fact_sales",
+        "SELECT AVG(discount_pct) FROM promotions",
+        "SELECT AVG(sales_area_m2) FROM dim_store",
+    ],
+)
+def test_whole_number_averages_are_rejected_because_t_sql_truncates_them(sql):
+    with pytest.raises(SqlRejected, match="truncates"):
+        check_select(sql)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT AVG(CAST(units AS decimal(18, 4))) FROM fact_sales",
+        "SELECT AVG(units * 1.0) FROM fact_sales",
+        "SELECT SUM(units) * 1.0 / COUNT(*) FROM fact_sales",
+        "SELECT AVG(net_sales_mad) FROM fact_sales",
+        "SELECT SUM(net_sales_mad) / SUM(units) FROM fact_sales",
+        "SELECT COUNT(*) FROM fact_sales",
+    ],
+)
+def test_averages_with_decimals_pass(sql):
+    check_select(sql)
