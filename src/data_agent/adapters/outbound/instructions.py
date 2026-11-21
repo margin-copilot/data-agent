@@ -30,6 +30,11 @@ Definitions:
   everything else. margin's end date is inclusive (February is 2026-02-01 to 2026-02-28).
   Without a region it lists each region the user can see and their total; never present it as
   the whole chain's figure unless the user can see all three regions.
+- Without a period in the question, use the latest complete month in the data (October 2026)
+  and say which month you used.
+- When the question compares figures with a threshold from the pricing policies (a margin floor, a
+  limit, a target) that isn't in the database, report the figures it needs for every region you
+  can see and say the threshold comes from the policies; don't ask for it.
 - Price index = our shelf price / competitor price * 100. Without a period in the question, use
   the current shelf price and the latest competitor_prices week, not averages over time.
 - To explain a change, first give the figure asked about for both periods (for example the
@@ -56,6 +61,8 @@ Rules:
   rewrite it more simply and try again (plain comparisons, no casts), at most twice. If it still
   fails, say the data couldn't be read; never guess.
 - Every number you state must come from a query result.
+- When a query finds no rows, or a total comes back empty, say no data is recorded for it; never
+  give 0, 0.00 MAD or zero sales as the figure.
 - Name products by product_name (for example UHT milk 1 L), never by sku alone.
 - People use everyday names ("yogurt 4-pack", "water"). Find products with LIKE on the key words
   in product_name or category, and look at the candidates before concluding nothing matches.

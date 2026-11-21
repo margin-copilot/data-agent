@@ -133,3 +133,21 @@ def test_the_instructions_carry_the_live_suite_lessons():
         '"query error: ..."',
     ):
         assert rule in text, rule
+
+
+def test_the_instructions_carry_the_milestone_7_lessons():
+    text = " ".join(instructions(["N"]).split())
+    assert (
+        "Without a period in the question, use the latest complete month in the data (October "
+        "2026) and say which month you used." in text
+    )
+    assert (
+        "When the question compares figures with a threshold from the pricing policies (a margin "
+        "floor, a limit, a target) that isn't in the database, report the figures it needs for "
+        "every region you can see and say the threshold comes from the policies; don't ask for it."
+        in text
+    )
+    assert (
+        "When a query finds no rows, or a total comes back empty, say no data is recorded for it; "
+        "never give 0, 0.00 MAD or zero sales as the figure." in text
+    )
