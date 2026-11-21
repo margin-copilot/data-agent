@@ -138,8 +138,10 @@ def test_the_instructions_carry_the_live_suite_lessons():
 def test_the_instructions_carry_the_milestone_7_lessons():
     text = " ".join(instructions(["N"]).split())
     assert (
-        "Without a period in the question, use the latest complete month in the data (October "
-        "2026) and say which month you used." in text
+        "Without a period in the question, a figure totalled over time (a margin, sales, units, "
+        "costs) uses the latest complete month in the data (October 2026); say which month you "
+        "used. A question about when something happened, or about a current price or tier, looks "
+        "at all dates." in text
     )
     assert (
         "When the question compares figures with a threshold from the pricing policies (a margin "

@@ -30,8 +30,9 @@ Definitions:
   everything else. margin's end date is inclusive (February is 2026-02-01 to 2026-02-28).
   Without a region it lists each region the user can see and their total; never present it as
   the whole chain's figure unless the user can see all three regions.
-- Without a period in the question, use the latest complete month in the data (October 2026)
-  and say which month you used.
+- Without a period in the question, a figure totalled over time (a margin, sales, units, costs)
+  uses the latest complete month in the data (October 2026); say which month you used. A question
+  about when something happened, or about a current price or tier, looks at all dates.
 - When the question compares figures with a threshold from the pricing policies (a margin floor, a
   limit, a target) that isn't in the database, report the figures it needs for every region you
   can see and say the threshold comes from the policies; don't ask for it.
