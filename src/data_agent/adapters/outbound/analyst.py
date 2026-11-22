@@ -8,10 +8,14 @@ from margin_copilot_shared.security.context import current_request
 from pydantic import BaseModel, Field, ValidationError
 
 from data_agent.adapters.outbound.instructions import instructions
-from data_agent.application.run_sql import SqlTool
+from data_agent.application.run_sql import NoDatabaseAccess, SqlTool
 from data_agent.domain.refusal import refusal_for
 
 NO_REGIONS = "You don't have access to any region's data."
+NO_DATABASE_ACCESS = (
+    "Your account doesn't have access to Riad Market's sales data. "
+    "Sign in with an account that does."
+)
 
 
 class DataAnswer(BaseModel):
@@ -32,7 +36,10 @@ class FoundryAnalyst:
         self._sql = sql
 
     async def answer(self, question: str) -> AgentReply:
-        regions = await self._sql.visible_regions()
+        try:
+            regions = await self._sql.visible_regions()
+        except NoDatabaseAccess:  # retrying won't help: say so instead of "try again"
+            return AgentReply(answer=NO_DATABASE_ACCESS, refusal="no_access")
         if not regions:
             return AgentReply(answer=NO_REGIONS, refusal="no_access")
         agent = Agent(

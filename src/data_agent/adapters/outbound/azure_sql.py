@@ -12,7 +12,7 @@ from typing import Any
 from margin_copilot_shared.security.context import current_request
 from margin_copilot_shared.security.obo import OboClient
 
-from data_agent.application.run_sql import QueryError, QueryFailed
+from data_agent.application.run_sql import NoDatabaseAccess, QueryError, QueryFailed
 
 SQL_SCOPES = ["https://database.windows.net/.default"]
 ACCESS_TOKEN = 1256  # SQL_COPT_SS_ACCESS_TOKEN
@@ -20,6 +20,7 @@ ACCESS_TOKEN = 1256  # SQL_COPT_SS_ACCESS_TOKEN
 # without the number, so the message text counts too.
 WAKING = ("40613", "is not currently available")
 WAKE_DELAYS = (5, 10, 20, 30)
+LOGIN_FAILED = "Login failed for user"  # 18456: the user's account isn't a database user
 LOGIN_TIMEOUT = 30
 # Whole messages SQL Server raises while compiling, before any row is read: they quote only what
 # the query wrote. Anything else (divide by zero, conversions) can carry or reveal row values, so
@@ -105,6 +106,9 @@ class AzureSqlRunner:
             try:
                 return self._connect(self._dsn, attrs_before=attrs, timeout=LOGIN_TIMEOUT)
             except Exception as error:
+                if LOGIN_FAILED in str(error):
+                    log.warning("connect failed: no database login for this user")
+                    raise NoDatabaseAccess from None
                 if delay is None or not any(sign in str(error) for sign in WAKING):
                     log.warning("connect failed: %s: %.300s", type(error).__name__, error)
                     raise QueryFailed from None

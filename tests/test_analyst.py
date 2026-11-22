@@ -153,3 +153,23 @@ def test_the_instructions_carry_the_milestone_7_lessons():
         "When a query finds no rows, or a total comes back empty, say no data is recorded for it; "
         "never give 0, 0.00 MAD or zero sales as the figure." in text
     )
+
+
+async def test_an_account_without_database_access_is_no_access_without_a_model_call():
+    from data_agent.application.run_sql import NoDatabaseAccess
+
+    class NoLogin(FakeRunner):
+        async def query(self, sql, max_rows, params=()):
+            raise NoDatabaseAccess
+
+    model = ScriptedChatClient([])
+    with request_scope(
+        RequestContext(Caller("someone", "tid", "orchestrator", frozenset()), token="t")
+    ):
+        reply = await FoundryAnalyst(model, SqlTool(NoLogin())).answer("Dairy margin in October?")
+    assert reply == AgentReply(
+        answer="Your account doesn't have access to Riad Market's sales data. Sign in with an "
+        "account that does.",
+        refusal="no_access",
+    )
+    assert model.calls == []

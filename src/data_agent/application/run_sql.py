@@ -36,6 +36,10 @@ class QueryFailed(Exception):
     """A database failure. Deliberately carries no database text."""
 
 
+class NoDatabaseAccess(QueryFailed):
+    """The database refused the signed-in user's login: their account isn't one it knows."""
+
+
 class QueryError(QueryFailed):
     """Raised before any row is read (syntax, unknown names): its text names only what the query
     itself wrote, so the model may see it and fix the query."""

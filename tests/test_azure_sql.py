@@ -196,3 +196,15 @@ async def test_parameters_are_bound_by_the_driver_not_spliced_into_the_sql():
     assert driver.connections[0].executed == [
         ("SELECT 1 FROM dbo.fact_sales WHERE region_id = ?", ("N",))
     ]
+
+
+async def test_a_failed_login_means_no_database_access():
+    from data_agent.application.run_sql import NoDatabaseAccess
+
+    login = RuntimeError(
+        "Driver Error: Invalid authorization specification; DDBC Error: [Microsoft][SQL Server]"
+        "Login failed for user '<token-identified principal>'."
+    )
+    sql, _ = runner(FakeDriver(connect_errors=[login]))
+    with request_scope(USER), pytest.raises(NoDatabaseAccess):
+        await sql.query("SELECT 1", 201)
