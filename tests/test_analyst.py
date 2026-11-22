@@ -86,6 +86,14 @@ async def test_code_sets_the_refusal_from_the_reported_facts(reported, expected)
     assert reply.refusal == expected
 
 
+async def test_regions_the_question_names_outrank_the_reported_ones():
+    model = ScriptedChatClient([answers(facts("No North rows.", regions_asked=["N", "S"]))])
+    reply = await FoundryAnalyst(model, SqlTool(FakeRunner(regions=("S",)))).answer(
+        "Why did dairy margin drop in the North in October 2026?"
+    )
+    assert reply.refusal == "no_access"
+
+
 async def test_a_user_who_sees_no_region_gets_no_access_without_a_model_call():
     model = ScriptedChatClient([])
     reply = await FoundryAnalyst(model, SqlTool(FakeRunner(regions=()))).answer("Margins?")

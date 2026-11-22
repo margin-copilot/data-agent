@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from data_agent.adapters.outbound.instructions import instructions
 from data_agent.application.run_sql import NoDatabaseAccess, SqlTool
-from data_agent.domain.refusal import refusal_for
+from data_agent.domain.refusal import refusal_for, regions_named
 
 NO_REGIONS = "You don't have access to any region's data."
 NO_DATABASE_ACCESS = (
@@ -55,7 +55,8 @@ class FoundryAnalyst:
             result = None
         if result is None:
             raise AnalystFailed("the model gave no structured answer")
-        refusal = refusal_for(result.regions_asked, result.found_data, regions)
+        asked = regions_named(question) or result.regions_asked
+        refusal = refusal_for(asked, result.found_data, regions)
         return AgentReply(answer=result.answer, refusal=refusal)
 
 

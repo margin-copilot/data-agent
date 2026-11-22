@@ -1,6 +1,6 @@
 import pytest
 
-from data_agent.domain.refusal import refusal_for
+from data_agent.domain.refusal import refusal_for, regions_named
 
 
 @pytest.mark.parametrize(
@@ -19,3 +19,18 @@ from data_agent.domain.refusal import refusal_for
 )
 def test_the_label_follows_from_the_facts(asked, found, visible, expected):
     assert refusal_for(asked, found, visible) == expected
+
+
+@pytest.mark.parametrize(
+    ("question", "named"),
+    [
+        ("Why did dairy margin drop in the North in October 2026?", ["N"]),
+        ("Compare southern and Northern dairy margins.", ["N", "S"]),
+        ("What price changes did the Center make to olive oil in June 2026?", ["C"]),
+        ("What did south.mgr change in August?", ["S"]),
+        ("Sales at Tétouan Centre in October?", []),  # a North store, not the Center
+        ("Dairy margin in October?", []),
+    ],
+)
+def test_code_reads_the_regions_a_question_names(question, named):
+    assert regions_named(question) == named
