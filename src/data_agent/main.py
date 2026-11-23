@@ -3,11 +3,14 @@
 import os
 
 from agent_framework.foundry import FoundryChatClient
+from agent_framework.observability import enable_instrumentation
 from azure.identity.aio import ManagedIdentityCredential
 from margin_copilot_shared.security.obo import OboClient, managed_identity_assertion
 from margin_copilot_shared.security.tokens import entra_validator
+from margin_copilot_shared.telemetry import configure_telemetry, instrument_app
 from margin_copilot_shared.testing.issuer import LocalIssuer
 from starlette.applications import Starlette
+from starlette.types import ASGIApp
 
 from data_agent.adapters.inbound.a2a_server import create_a2a_app
 from data_agent.adapters.outbound.analyst import FakeAnalyst, FoundryAnalyst
@@ -18,7 +21,13 @@ TOOL_LIMITS = {"max_iterations": 8, "max_function_calls": 8}
 MODEL_TIMEOUT = 60
 
 
-def create_app() -> Starlette:
+def create_app() -> ASGIApp:
+    if configure_telemetry("data-agent", os.environ):
+        enable_instrumentation(enable_sensitive_data=False)
+    return instrument_app(_app())
+
+
+def _app() -> Starlette:
     env = os.environ
     adapters = env["ADAPTERS"]
     if adapters == "azure":

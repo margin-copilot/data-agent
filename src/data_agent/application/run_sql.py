@@ -7,6 +7,8 @@ import re
 from datetime import date
 from typing import Protocol
 
+from margin_copilot_shared.telemetry import span
+
 from data_agent.domain.sql_guard import SqlRejected, check_select
 
 MAX_ROWS = 200
@@ -56,17 +58,23 @@ class SqlTool:
         self._runner = runner
 
     async def run_sql(self, sql: str) -> str:
-        try:
-            check_select(sql)
-        except SqlRejected as rejected:
-            return f"rejected: {rejected}"
-        try:
-            columns, rows = await self._runner.query(sql, MAX_ROWS + 1)
-        except QueryError as error:
-            return f"query error: {error}"
-        except QueryFailed:
-            return "query failed"
-        return as_csv(columns, rows)
+        labels = {"margin.sql.rejected": False, "margin.sql.failed": False}
+        with span("data_agent.run_sql", **labels) as ran:
+            try:
+                check_select(sql)
+            except SqlRejected as rejected:
+                ran.set_attribute("margin.sql.rejected", True)
+                return f"rejected: {rejected}"
+            try:
+                columns, rows = await self._runner.query(sql, MAX_ROWS + 1)
+            except QueryError as error:
+                ran.set_attribute("margin.sql.failed", True)
+                return f"query error: {error}"
+            except QueryFailed:
+                ran.set_attribute("margin.sql.failed", True)
+                return "query failed"
+            ran.set_attribute("margin.sql.rows", len(rows))
+            return as_csv(columns, rows)
 
     async def margin(
         self, start: str, end: str, region: str | None, category: str | None, sku: str | None

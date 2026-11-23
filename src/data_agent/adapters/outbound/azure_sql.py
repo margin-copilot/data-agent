@@ -11,6 +11,7 @@ from typing import Any
 
 from margin_copilot_shared.security.context import current_request
 from margin_copilot_shared.security.obo import OboClient
+from margin_copilot_shared.telemetry import span
 
 from data_agent.application.run_sql import NoDatabaseAccess, QueryError, QueryFailed
 
@@ -77,7 +78,16 @@ class AzureSqlRunner:
         self, sql: str, max_rows: int, params: tuple = ()
     ) -> tuple[list[str], list[tuple]]:
         token = current_request().token
-        return await asyncio.to_thread(self._query, token, sql, max_rows, params)
+        with span("data_agent.query") as queried:
+            try:
+                columns, rows = await asyncio.to_thread(self._query, token, sql, max_rows, params)
+            except QueryFailed as error:  # raised below: a compile error's text can echo the SQL
+                queried.set_attribute("margin.sql.failed", type(error).__name__)
+                failure = error
+            else:
+                queried.set_attribute("margin.sql.rows", len(rows))
+                return columns, rows
+        raise failure
 
     def _query(
         self, user_token: str, sql: str, max_rows: int, params: tuple
@@ -102,14 +112,15 @@ class AzureSqlRunner:
 
     def _open(self, token: str) -> Any:
         attrs = {ACCESS_TOKEN: pack_token(token)}
-        for delay in (*WAKE_DELAYS, None):
-            try:
-                return self._connect(self._dsn, attrs_before=attrs, timeout=LOGIN_TIMEOUT)
-            except Exception as error:
-                if LOGIN_FAILED in str(error):
-                    log.warning("connect failed: no database login for this user")
-                    raise NoDatabaseAccess from None
-                if delay is None or not any(sign in str(error) for sign in WAKING):
-                    log.warning("connect failed: %s: %.300s", type(error).__name__, error)
-                    raise QueryFailed from None
-                self._sleep(delay)
+        with span("data_agent.connect"):
+            for delay in (*WAKE_DELAYS, None):
+                try:
+                    return self._connect(self._dsn, attrs_before=attrs, timeout=LOGIN_TIMEOUT)
+                except Exception as error:
+                    if LOGIN_FAILED in str(error):
+                        log.warning("connect failed: no database login for this user")
+                        raise NoDatabaseAccess from None
+                    if delay is None or not any(sign in str(error) for sign in WAKING):
+                        log.warning("connect failed: %s: %.300s", type(error).__name__, error)
+                        raise QueryFailed from None
+                    self._sleep(delay)
