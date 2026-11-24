@@ -1,5 +1,7 @@
 """margin_change: one tested call that explains a category's margin change between two periods."""
 
+from datetime import date
+
 from data_agent.application.run_sql import QueryFailed, SqlTool
 
 ARGS = ("2026-09-01", "2026-09-30", "2026-10-01", "2026-10-31", "N", "Dairy")
@@ -79,6 +81,17 @@ async def test_margin_change_returns_every_section():
         assert max_rows == 200 and params
         for value in ("2026-09-01", "2026-10-31", "Dairy", "'N'"):
             assert value not in sql  # bound, never spliced
+
+
+async def test_a_change_dated_the_first_day_before_is_left_out():
+    """In force in both periods, it can't explain the move."""
+    runner = SectionRunner(TOTALS, PRODUCTS, COSTS, PROMOTIONS, PRICES)
+    await SqlTool(runner).margin_change(*ARGS)
+    (costs_sql, _, costs_params), (prices_sql, _, prices_params) = runner.calls[2], runner.calls[4]
+    window = ("N", "Dairy", date(2026, 9, 1), date(2026, 10, 31))
+    assert "c.effective_from > ? AND c.effective_from <= ?" in costs_sql and costs_params == window
+    assert "h.effective_date > ? AND h.effective_date <= ?" in prices_sql
+    assert prices_params == window
 
 
 async def test_overlapping_periods_are_rejected():

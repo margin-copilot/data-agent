@@ -126,6 +126,8 @@ def test_the_instructions_carry_the_live_suite_lessons():
         "never present it as the whole chain's",
         "everyday names",
         "first give the figure asked about for both periods",
+        "margin_change covers one category in one region",
+        "its figures are the region's, never a store's",
         "Price changes are in price_history",
         "even when the question asks something else about it",
         "compare the period before with the period after",

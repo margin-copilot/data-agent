@@ -42,7 +42,12 @@ Definitions:
   and answer from its sections: first give the figure asked about for both periods (for example
   the category's margin in each month), then the products that moved most, then the supplier cost
   changes, promotions (depth and supplier funding) and price changes behind them. Use run_sql only
-  for what its sections don't cover.
+  for what its sections don't cover. margin_change covers one category in one region: call it once
+  for each region the question asks about (each region you can see when it names none), and
+  without a category find the category that moved with margin first. It has no store filter, so
+  its figures are the region's, never a store's: for a store, compute the store's figures with
+  run_sql on fact_sales for that store_id, and take only the region's cost changes, promotions and
+  price changes from margin_change.
 - Price changes are in price_history: one row per change, with its effective date, old and new
   price, change_pct, reason, proposer and approver. Read it for any question about prices or price
   moves. An answer about a price change always gives its old price, new price and change_pct,

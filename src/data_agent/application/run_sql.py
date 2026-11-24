@@ -67,7 +67,7 @@ CHANGE_COSTS = (
     "supplier_id, effective_from, unit_cost_mad, LAG(unit_cost_mad) OVER (PARTITION BY sku, "
     "region_id ORDER BY effective_from) AS previous_cost_mad FROM dbo.supplier_costs) AS c "
     "JOIN dbo.dim_product AS p ON p.sku = c.sku "
-    "WHERE c.region_id = ? AND p.category = ? AND c.effective_from BETWEEN ? AND ? "
+    "WHERE c.region_id = ? AND p.category = ? AND c.effective_from > ? AND c.effective_from <= ? "
     "ORDER BY c.effective_from, c.sku"
 )
 CHANGE_PROMOTIONS = (
@@ -80,7 +80,7 @@ CHANGE_PRICES = (
     "SELECT h.sku, p.product_name, h.effective_date, h.old_price_mad, h.new_price_mad, "
     "h.change_pct, h.reason_code FROM dbo.price_history AS h JOIN dbo.dim_product AS p "
     "ON p.sku = h.sku WHERE h.region_id = ? AND p.category = ? "
-    "AND h.effective_date BETWEEN ? AND ? "
+    "AND h.effective_date > ? AND h.effective_date <= ? "
     "ORDER BY h.effective_date, h.sku"
 )
 
