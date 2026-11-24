@@ -1,5 +1,6 @@
 """Analyst port adapters: a Foundry model that answers through run_sql, and a fake."""
 
+import re
 from typing import Annotated, Any, Literal
 
 from agent_framework import Agent, tool
@@ -16,6 +17,10 @@ NO_DATABASE_ACCESS = (
     "Your account doesn't have access to Riad Market's sales data. "
     "Sign in with an account that does."
 )
+
+
+# The facts belong in their own fields; seen live written into the answer text too.
+REPORTED_LINE = re.compile(r"^[\s*`-]*(regions_asked|found_data)\b.*\n?", re.MULTILINE)
 
 
 class DataAnswer(BaseModel):
@@ -57,7 +62,8 @@ class FoundryAnalyst:
             raise AnalystFailed("the model gave no structured answer")
         asked = regions_named(question) or result.regions_asked
         refusal = refusal_for(asked, result.found_data, regions)
-        return AgentReply(answer=result.answer, refusal=refusal)
+        answer = REPORTED_LINE.sub("", result.answer).strip() or result.answer
+        return AgentReply(answer=answer, refusal=refusal)
 
 
 def run_sql_tool(sql: SqlTool) -> Any:

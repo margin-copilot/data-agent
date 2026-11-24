@@ -95,6 +95,14 @@ async def test_regions_the_question_names_outrank_the_reported_ones():
     assert reply.refusal == "no_access"
 
 
+async def test_the_reported_facts_never_show_in_the_answer():
+    # Seen live: the model also wrote its structured facts at the end of the answer text.
+    text = 'Dairy margin fell from 24.1% to 21.3%.\n\nregions_asked: ["N"], found_data: true'
+    model = ScriptedChatClient([answers(facts(text, regions_asked=["N"]))])
+    reply = await FoundryAnalyst(model, SqlTool(FakeRunner(regions=("N",)))).answer("Why?")
+    assert reply.answer == "Dairy margin fell from 24.1% to 21.3%."
+
+
 async def test_a_user_who_sees_no_region_gets_no_access_without_a_model_call():
     model = ScriptedChatClient([])
     reply = await FoundryAnalyst(model, SqlTool(FakeRunner(regions=()))).answer("Margins?")
