@@ -103,6 +103,25 @@ async def test_the_reported_facts_never_show_in_the_answer():
     assert reply.answer == "Dairy margin fell from 24.1% to 21.3%."
 
 
+@pytest.mark.parametrize(
+    ("text", "kept"),
+    [
+        (  # seen live (G-C01): the facts in the middle of a line
+            'I examined North (N) only. regions_asked: ["N"]. found_data: true.',
+            "I examined North (N) only.",
+        ),
+        (
+            'regions_asked: ["N"], found_data: true. Margin fell to 21.3%.',
+            "Margin fell to 21.3%.",
+        ),
+    ],
+)
+async def test_the_reported_facts_never_show_mid_line(text, kept):
+    model = ScriptedChatClient([answers(facts(text, regions_asked=["N"]))])
+    reply = await FoundryAnalyst(model, SqlTool(FakeRunner(regions=("N",)))).answer("Why?")
+    assert reply.answer == kept
+
+
 async def test_a_user_who_sees_no_region_gets_no_access_without_a_model_call():
     model = ScriptedChatClient([])
     reply = await FoundryAnalyst(model, SqlTool(FakeRunner(regions=()))).answer("Margins?")

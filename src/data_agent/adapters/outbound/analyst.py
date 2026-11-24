@@ -19,7 +19,11 @@ NO_DATABASE_ACCESS = (
 )
 
 
-# The facts belong in their own fields; seen live written into the answer text too.
+# The facts belong in their own fields; seen live written into the answer text too,
+# on their own line and mid-line. The value is matched so the text around it stays.
+REPORTED_FACT = re.compile(
+    r"\s*\b(regions_asked|found_data)\s*[:=]\s*(\[[^\]\n]*\]|true|false)[.,;]?"
+)
 REPORTED_LINE = re.compile(r"^[\s*`-]*(regions_asked|found_data)\b.*\n?", re.MULTILINE)
 
 
@@ -62,7 +66,8 @@ class FoundryAnalyst:
             raise AnalystFailed("the model gave no structured answer")
         asked = regions_named(question) or result.regions_asked
         refusal = refusal_for(asked, result.found_data, regions)
-        answer = REPORTED_LINE.sub("", result.answer).strip() or result.answer
+        stripped = REPORTED_LINE.sub("", REPORTED_FACT.sub("", result.answer)).strip()
+        answer = stripped or result.answer
         return AgentReply(answer=answer, refusal=refusal)
 
 
