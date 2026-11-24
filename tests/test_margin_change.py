@@ -1,5 +1,6 @@
 """margin_change: one tested call that explains a category's margin change between two periods."""
 
+import asyncio
 from datetime import date
 
 from data_agent.application.run_sql import QueryFailed, SqlTool
@@ -83,6 +84,29 @@ async def test_margin_change_returns_every_section():
             assert value not in sql  # bound, never spliced
 
 
+class GatedRunner(SectionRunner):
+    """Holds every query until five have started: queries run one after another time out."""
+
+    def __init__(self, *answers):
+        super().__init__(*answers)
+        self.all_in = asyncio.Event()
+
+    async def query(self, sql, max_rows, params=()):
+        answer = await super().query(sql, max_rows, params)
+        if len(self.calls) == 5:
+            self.all_in.set()
+        await asyncio.wait_for(self.all_in.wait(), 1)
+        return answer
+
+
+async def test_the_five_queries_run_at_once():
+    sections = (TOTALS, PRODUCTS, COSTS, PROMOTIONS, PRICES)
+    expected = await SqlTool(SectionRunner(*sections)).margin_change(*ARGS)
+    runner = GatedRunner(*sections)
+    assert await SqlTool(runner).margin_change(*ARGS) == expected
+    assert len(runner.calls) == 5
+
+
 async def test_a_change_dated_the_first_day_before_is_left_out():
     """In force in both periods, it can't explain the move."""
     runner = SectionRunner(TOTALS, PRODUCTS, COSTS, PROMOTIONS, PRICES)
@@ -116,7 +140,8 @@ async def test_a_region_is_required():
 
 async def test_no_sales_says_so():
     empty = (TOTALS[0], [("before", None, None, None), ("after", None, None, None)])
-    result = await SqlTool(SectionRunner(empty)).margin_change(*ARGS)
+    runner = SectionRunner(empty, PRODUCTS, COSTS, PROMOTIONS, PRICES)  # all five run at once
+    result = await SqlTool(runner).margin_change(*ARGS)
     assert result == "no sales rows for that period and filter"
 
 

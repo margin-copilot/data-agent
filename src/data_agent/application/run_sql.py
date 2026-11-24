@@ -1,6 +1,7 @@
 """The run_sql tool: one checked SELECT, run as the signed-in user. The model sees rows, our own
 rejection reasons or "query failed"; never database error text, which can leak hidden rows."""
 
+import asyncio
 import csv
 import io
 import re
@@ -199,16 +200,18 @@ class SqlTool:
             ("promotions", CHANGE_PROMOTIONS, (region, category, ae, bs)),
             ("price changes", CHANGE_PRICES, (region, category, bs, ae)),
         )
-        sections = []
-        try:
-            for title, sql, params in queries:
-                columns, rows = await self._runner.query(sql, MAX_ROWS, params)
-                if title == "category" and all(row[1] is None for row in rows):  # net_sales_mad
-                    return "no sales rows for that period and filter"
-                sections.append(f"{title}\n{as_csv(columns, rows).rstrip() if rows else 'none'}")
+        try:  # each query on its own connection as the user, all at once
+            results = await asyncio.gather(
+                *(self._runner.query(sql, MAX_ROWS, params) for _, sql, params in queries)
+            )
         except QueryFailed:
             return "query failed"
-        return "\n\n".join(sections)
+        if all(row[1] is None for row in results[0][1]):  # the category's net_sales_mad
+            return "no sales rows for that period and filter"
+        return "\n\n".join(
+            f"{title}\n{as_csv(columns, rows).rstrip() if rows else 'none'}"
+            for (title, _, _), (columns, rows) in zip(queries, results, strict=True)
+        )
 
     async def visible_regions(self) -> list[str]:
         """Regions whose rows RLS lets this user see. A failure here fails the whole request."""
