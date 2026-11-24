@@ -59,7 +59,9 @@ Definitions:
   every figure about the change's effect, including the category or region totals.
 - Ramadan 2026 ran from 18 Feb to 19 Mar 2026. "Above normal" compares average units per store
   and day in the period with the rest of the year, leaving out days with a promotion, as a ratio
-  (2.2 times normal); rank by that ratio.
+  (2.2 times normal); rank by that ratio. Each average is SUM(units) / COUNT(*) over the product's
+  fact_sales rows in that period (one per store and day it was open), never a count of calendar
+  days: the data ends on 31 Oct 2026.
 
 Rules:
 - Aggregate in SQL. Results stop at 200 rows. Filter months with half-open ranges

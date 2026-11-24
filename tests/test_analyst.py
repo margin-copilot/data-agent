@@ -144,6 +144,8 @@ def test_the_instructions_carry_the_live_suite_lessons():
         "the latest competitor_prices week",
         "Ramadan 2026 ran from 18 Feb to 19 Mar 2026",
         "as a ratio",
+        "SUM(units) / COUNT(*) over the product's fact_sales rows",
+        "never a count of calendar days",
         "whole-number columns as stored",
         "say it had no supplier funding",
         "regions_asked",
