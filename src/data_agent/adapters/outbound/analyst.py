@@ -46,7 +46,7 @@ class FoundryAnalyst:
             client=self._client,
             instructions=instructions(regions),
             tools=[run_sql_tool(self._sql), margin_tool(self._sql), margin_change_tool(self._sql)],
-            default_options={"response_format": DataAnswer, "reasoning": {"effort": "medium"}},
+            default_options={"response_format": DataAnswer, "reasoning": {"effort": "low"}},
         )
         response = await agent.run(question)
         try:

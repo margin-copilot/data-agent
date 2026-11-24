@@ -55,7 +55,7 @@ async def test_the_model_is_told_which_regions_the_user_can_see():
     await FoundryAnalyst(model, SqlTool(FakeRunner(regions=("N",)))).answer("South margin?")
     _, options = model.calls[0]
     assert "can see data for: North (N)." in options["instructions"]
-    assert options["reasoning"] == {"effort": "medium"}
+    assert options["reasoning"] == {"effort": "low"}
     assert [t.name for t in options["tools"]] == ["run_sql", "margin", "margin_change"]
     assert "call margin_change once" in " ".join(options["instructions"].split())
 
