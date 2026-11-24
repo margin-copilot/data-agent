@@ -2,6 +2,7 @@
 in the shared AgentReply contract."""
 
 import logging
+from collections.abc import Awaitable, Callable
 
 from a2a.helpers import new_data_message
 from a2a.server.agent_execution import AgentExecutor, RequestContext
@@ -15,6 +16,9 @@ from margin_copilot_shared.security.middleware import AuthMiddleware
 from margin_copilot_shared.security.tokens import TokenValidator
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
+from starlette.requests import Request
+from starlette.responses import Response
+from starlette.routing import Route
 
 from data_agent.application.analyst import Analyst
 
@@ -65,7 +69,22 @@ def agent_card(public_url: str) -> AgentCard:
     )
 
 
-def create_a2a_app(analyst: Analyst, validator: TokenValidator, public_url: str) -> Starlette:
+def create_a2a_app(
+    analyst: Analyst,
+    validator: TokenValidator,
+    public_url: str,
+    warm: Callable[[], Awaitable[object]] | None = None,
+) -> Starlette:
+    """`warm` (POST /warm, D-044): a cheap query as the caller that resumes a paused database."""
+
+    async def warm_up(request: Request) -> Response:
+        if warm is not None:
+            try:
+                await warm()
+            except Exception as error:  # best effort: the caller gets nothing either way
+                log.warning("warm failed: %s", type(error).__name__)
+        return Response(status_code=204)
+
     card = agent_card(public_url)
     handler = DefaultRequestHandler(
         agent_executor=DataAgentExecutor(analyst),
@@ -73,7 +92,11 @@ def create_a2a_app(analyst: Analyst, validator: TokenValidator, public_url: str)
         agent_card=card,
     )
     return Starlette(
-        routes=[*create_agent_card_routes(card), *create_jsonrpc_routes(handler, "/")],
+        routes=[
+            *create_agent_card_routes(card),
+            Route("/warm", warm_up, methods=["POST"]),
+            *create_jsonrpc_routes(handler, "/"),
+        ],
         middleware=[
             Middleware(
                 AuthMiddleware,

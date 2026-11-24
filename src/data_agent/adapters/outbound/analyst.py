@@ -45,7 +45,7 @@ class FoundryAnalyst:
         agent = Agent(
             client=self._client,
             instructions=instructions(regions),
-            tools=[run_sql_tool(self._sql), margin_tool(self._sql)],
+            tools=[run_sql_tool(self._sql), margin_tool(self._sql), margin_change_tool(self._sql)],
             default_options={"response_format": DataAnswer, "reasoning": {"effort": "medium"}},
         )
         response = await agent.run(question)
@@ -91,6 +91,31 @@ def margin_tool(sql: SqlTool) -> Any:
         return await sql.margin(start, end, region, category, sku)
 
     return margin
+
+
+def margin_change_tool(sql: SqlTool) -> Any:
+    @tool(name="margin_change")
+    async def margin_change(
+        before_start: Annotated[
+            str, Field(description="First day of the period before the change, YYYY-MM-DD.")
+        ],
+        before_end: Annotated[str, Field(description="Last day of the period before, inclusive.")],
+        after_start: Annotated[str, Field(description="First day of the period after.")],
+        after_end: Annotated[str, Field(description="Last day of the period after, inclusive.")],
+        region: Annotated[Literal["N", "C", "S"], Field(description="One region: N, C or S.")],
+        category: Annotated[
+            Literal["Bakery", "Beverages", "Dairy", "Grocery", "Household", "Produce"],
+            Field(description="One category."),
+        ],
+    ) -> str:
+        """Why a category's margin moved between two periods, in one call: its margin in both, each
+        product's change (worst first), and the supplier cost changes, promotions and price changes
+        in that time. Use it to explain a change."""
+        return await sql.margin_change(
+            before_start, before_end, after_start, after_end, region, category
+        )
+
+    return margin_change
 
 
 class FakeAnalyst:

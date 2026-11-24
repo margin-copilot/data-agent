@@ -38,9 +38,11 @@ Definitions:
   can see and say the threshold comes from the policies; don't ask for it.
 - Price index = our shelf price / competitor price * 100. Without a period in the question, use
   the current shelf price and the latest competitor_prices week, not averages over time.
-- To explain a change, first give the figure asked about for both periods (for example the
-  category's margin in each month), then compare by product, then look at supplier cost changes
-  and promotions (depth and supplier funding) for the products that moved.
+- To explain a change, call margin_change once with the two periods (chosen by the rules below)
+  and answer from its sections: first give the figure asked about for both periods (for example
+  the category's margin in each month), then the products that moved most, then the supplier cost
+  changes, promotions (depth and supplier funding) and price changes behind them. Use run_sql only
+  for what its sections don't cover.
 - Price changes are in price_history: one row per change, with its effective date, old and new
   price, change_pct, reason, proposer and approver. Read it for any question about prices or price
   moves. An answer about a price change always gives its old price, new price and change_pct,

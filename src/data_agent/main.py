@@ -43,7 +43,9 @@ def _app() -> Starlette:
             timeout=MODEL_TIMEOUT,
         )
         validator = entra_validator(tenant_id, client_id, callers)
-        return create_a2a_app(FoundryAnalyst(model, sql), validator, env["PUBLIC_URL"])
+        return create_a2a_app(
+            FoundryAnalyst(model, sql), validator, env["PUBLIC_URL"], warm=sql.visible_regions
+        )
     if adapters == "fake":
         # A fresh in-memory key per process: nobody outside this process can mint a token for it.
         validator = LocalIssuer().validator(

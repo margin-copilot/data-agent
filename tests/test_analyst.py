@@ -56,7 +56,8 @@ async def test_the_model_is_told_which_regions_the_user_can_see():
     _, options = model.calls[0]
     assert "can see data for: North (N)." in options["instructions"]
     assert options["reasoning"] == {"effort": "medium"}
-    assert [t.name for t in options["tools"]] == ["run_sql", "margin"]
+    assert [t.name for t in options["tools"]] == ["run_sql", "margin", "margin_change"]
+    assert "call margin_change once" in " ".join(options["instructions"].split())
 
 
 async def test_rejected_sql_is_reported_back_to_the_model():

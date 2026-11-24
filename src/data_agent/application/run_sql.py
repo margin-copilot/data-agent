@@ -32,6 +32,57 @@ BY_REGION = (
     "ELSE f.region_id END AS region, "
 )
 GROUPED = " GROUP BY GROUPING SETS ((f.region_id), ()) ORDER BY GROUPING(f.region_id), f.region_id"
+# margin_change: why a category's margin moved between two periods, in one call (each figure
+# computed here, so the model quotes rather than computes). Every value is a bound parameter.
+_CATEGORY = " AND f.region_id = ? AND p.category = ?"
+CHANGE_TOTALS = (
+    f"SELECT 'before' AS period, {MARGIN}{_CATEGORY} "
+    f"UNION ALL SELECT 'after' AS period, {MARGIN}{_CATEGORY}"
+)
+CHANGE_PRODUCTS = (
+    "WITH s AS (SELECT f.sku, CASE WHEN f.sale_date <= ? THEN 'before' ELSE 'after' END AS period, "
+    "f.net_sales_mad, f.cogs_mad FROM dbo.fact_sales AS f "
+    "JOIN dbo.dim_product AS p ON p.sku = f.sku "
+    "WHERE f.region_id = ? AND p.category = ? "
+    "AND (f.sale_date BETWEEN ? AND ? OR f.sale_date BETWEEN ? AND ?)), "
+    "m AS (SELECT sku, "
+    "SUM(CASE WHEN period = 'before' THEN net_sales_mad END) AS net_before, "
+    "SUM(CASE WHEN period = 'before' THEN cogs_mad END) AS cogs_before, "
+    "SUM(CASE WHEN period = 'after' THEN net_sales_mad END) AS net_after, "
+    "SUM(CASE WHEN period = 'after' THEN cogs_mad END) AS cogs_after FROM s GROUP BY sku), "
+    "r AS (SELECT sku, net_before, net_after, "
+    "(net_before - cogs_before) * 100 / NULLIF(net_before, 0) AS before_pct, "
+    "(net_after - cogs_after) * 100 / NULLIF(net_after, 0) AS after_pct FROM m) "
+    "SELECT r.sku, p.product_name, CAST(r.net_before AS decimal(14, 2)) AS net_sales_before_mad, "
+    "CAST(r.before_pct AS decimal(6, 1)) AS margin_before_pct, "
+    "CAST(r.net_after AS decimal(14, 2)) AS net_sales_after_mad, "
+    "CAST(r.after_pct AS decimal(6, 1)) AS margin_after_pct, "
+    "CAST(r.after_pct - r.before_pct AS decimal(6, 1)) AS margin_change_pp "
+    "FROM r JOIN dbo.dim_product AS p ON p.sku = r.sku ORDER BY r.after_pct - r.before_pct, r.sku"
+)
+CHANGE_COSTS = (
+    "SELECT c.sku, p.product_name, c.supplier_id, c.effective_from, c.previous_cost_mad, "
+    "c.unit_cost_mad, CAST((c.unit_cost_mad - c.previous_cost_mad) * 100 "
+    "/ NULLIF(c.previous_cost_mad, 0) AS decimal(6, 1)) AS change_pct FROM (SELECT sku, region_id, "
+    "supplier_id, effective_from, unit_cost_mad, LAG(unit_cost_mad) OVER (PARTITION BY sku, "
+    "region_id ORDER BY effective_from) AS previous_cost_mad FROM dbo.supplier_costs) AS c "
+    "JOIN dbo.dim_product AS p ON p.sku = c.sku "
+    "WHERE c.region_id = ? AND p.category = ? AND c.effective_from BETWEEN ? AND ? "
+    "ORDER BY c.effective_from, c.sku"
+)
+CHANGE_PROMOTIONS = (
+    "SELECT pr.promo_id, pr.sku, p.product_name, pr.start_date, pr.end_date, pr.discount_pct, "
+    "pr.supplier_funded_pct FROM dbo.promotions AS pr JOIN dbo.dim_product AS p ON p.sku = pr.sku "
+    "WHERE pr.region_id = ? AND p.category = ? AND pr.start_date <= ? AND pr.end_date >= ? "
+    "ORDER BY pr.start_date, pr.sku"
+)
+CHANGE_PRICES = (
+    "SELECT h.sku, p.product_name, h.effective_date, h.old_price_mad, h.new_price_mad, "
+    "h.change_pct, h.reason_code FROM dbo.price_history AS h JOIN dbo.dim_product AS p "
+    "ON p.sku = h.sku WHERE h.region_id = ? AND p.category = ? "
+    "AND h.effective_date BETWEEN ? AND ? "
+    "ORDER BY h.effective_date, h.sku"
+)
 
 
 class QueryFailed(Exception):
@@ -112,6 +163,52 @@ class SqlTool:
         if all(row[-3] is None for row in rows):  # net_sales_mad
             return "no sales rows for that period and filter"
         return as_csv(columns, rows)
+
+    async def margin_change(
+        self,
+        before_start: str,
+        before_end: str,
+        after_start: str,
+        after_end: str,
+        region: str,
+        category: str,
+    ) -> str:
+        try:
+            bs, be, a_s, ae = (
+                date.fromisoformat(d) for d in (before_start, before_end, after_start, after_end)
+            )
+        except (TypeError, ValueError):
+            return "rejected: give real dates as YYYY-MM-DD"
+        problems = [
+            *(["the period before must start no later than it ends"] if bs > be else []),
+            *(["the period before must end before the period after starts"] if be >= a_s else []),
+            *(["the period after must start no later than it ends"] if a_s > ae else []),
+            *([f"region must be one of {sorted(REGIONS)}"] if region not in REGIONS else []),
+            *(
+                [f"category must be one of {sorted(CATEGORIES)}"]
+                if category not in CATEGORIES
+                else []
+            ),
+        ]
+        if problems:
+            return f"rejected: {'; '.join(problems)}"
+        queries = (
+            ("category", CHANGE_TOTALS, (bs, be, region, category, a_s, ae, region, category)),
+            ("products", CHANGE_PRODUCTS, (be, region, category, bs, be, a_s, ae)),
+            ("cost changes", CHANGE_COSTS, (region, category, bs, ae)),
+            ("promotions", CHANGE_PROMOTIONS, (region, category, ae, bs)),
+            ("price changes", CHANGE_PRICES, (region, category, bs, ae)),
+        )
+        sections = []
+        try:
+            for title, sql, params in queries:
+                columns, rows = await self._runner.query(sql, MAX_ROWS, params)
+                if title == "category" and all(row[1] is None for row in rows):  # net_sales_mad
+                    return "no sales rows for that period and filter"
+                sections.append(f"{title}\n{as_csv(columns, rows).rstrip() if rows else 'none'}")
+        except QueryFailed:
+            return "query failed"
+        return "\n\n".join(sections)
 
     async def visible_regions(self) -> list[str]:
         """Regions whose rows RLS lets this user see. A failure here fails the whole request."""
