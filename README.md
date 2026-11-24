@@ -18,7 +18,7 @@ Part of **Margin Copilot**, a secure multi-agent pricing assistant on Azure, bui
   - `run_sql`: one SELECT, parsed with sqlglot and checked against the eight pricing tables (`domain/sql_guard.py`); impossible dates such as 2026-02-29 are rejected before running. So are averages and divisions of whole-number columns (`units`, `sales_area_m2`, `discount_pct`, `supplier_funded_pct`) without a cast: T-SQL computes them as integers and drops the fraction.
   - All three run on Azure SQL with the caller's OBO token, on their own connection (pooling off), with a 30-second timeout and at most 200 rows.
   - The model sees rows, the guard's reason, errors raised before any row is read (syntax, unknown names: they only name what the query wrote), or `query failed`. Never the text of errors raised while reading rows, which can reveal rows that row-level security hides.
-- Before the model runs, one query as the user finds the regions row-level security lets them see. The model reports which regions the question is about and whether it found the figures asked for; `domain/refusal.py` turns those facts into the refusal label, the same way every time. `out_of_scope` waits for the orchestrator's scope rules (milestone 7).
+- Before the model runs, one query as the user finds the regions row-level security lets them see. The model reports which regions the question is about and whether it found the figures asked for; `domain/refusal.py` turns those facts into the refusal label, the same way every time; they never appear in the answer text. `out_of_scope` waits for the orchestrator's scope rules (milestone 7).
 
 ## Configuration
 
