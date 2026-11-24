@@ -118,6 +118,7 @@ def test_the_instructions_carry_the_live_suite_lessons():
     text = " ".join(instructions(["N"]).split())
     for rule in (
         "never by sku alone",
+        "check once more before concluding",
         "Call margin for every margin figure",
         "rewrite it more simply and try again",
         "half-open ranges",
