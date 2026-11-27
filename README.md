@@ -32,7 +32,11 @@ uv run pytest -q
 ADAPTERS=fake uv run uvicorn --factory data_agent.main:create_app --port 8000
 ```
 
-Fake mode answers `fake data-agent answers as user <oid>` with no model and no database. Pushing to `main` publishes `ghcr.io/margin-copilot/data-agent:sha-<commit>` after a check that the SQL driver loads in the image. Deployment: the private infra repo. How identity and data access work: [security model](https://github.com/margin-copilot/docs/blob/main/security-model.md).
+Fake mode answers `fake data-agent answers as user <oid>` with no model and no database. How identity and data access work: [security model](https://github.com/margin-copilot/docs/blob/main/security-model.md).
+
+## Deploy
+
+A push to `main` runs the tests, publishes `ghcr.io/margin-copilot/data-agent:sha-<commit>` after a check that the SQL driver loads in the image, runs the evals gate on that commit, then deploys the image to the container app through GitHub OIDC (no stored Azure secret). The deploy waits up to 5 minutes for the new revision to serve all traffic, or fails while the old revision keeps serving. The app has internal ingress only, so there is no smoke call from the runner; the orchestrator's live checks cover it. Deploys run one at a time, in push order; other branches and pull requests get no Azure token. Repository secrets: `AZURE_CLIENT_ID` (this repo's deploy identity), `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `CONTAINER_APP_NAME`. The infra repo creates the app and the identity; how it all fits: [docs](https://github.com/margin-copilot/docs).
 
 ## License
 
